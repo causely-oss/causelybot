@@ -1,0 +1,40 @@
+{{- include "validateImageRepository" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: causelybot
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: causelybot
+  template:
+    metadata:
+      labels:
+        app: causelybot
+    spec:
+      containers:
+      - name: causelybot
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 5000
+        env:
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: slack-webhook-secret
+              key: webhook-url
+        - name: BEARER_TOKEN
+          valueFrom:
+              secretKeyRef:
+                name: bearer-token-secret
+                key: token
+        resources:
+          limits:
+            cpu: "1.0"
+            memory: "512Mi"
+          requests:
+            cpu: "1.0"
+            memory: "256Mi"
