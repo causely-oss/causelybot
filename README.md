@@ -1,0 +1,2 @@
+# CauselyBot
+causelybot is a webhook service designed to receive and authenticate incoming payloads, process them, and forward the relevant information to external systems such as Slack. This server-side application validates bearer tokens included in the payload, ensuring secure communication. Once authenticated, the bot forwards the payload to a specified Slack channel using a pre-configured Slack webhook URL, enabling streamlined notifications and updates.
