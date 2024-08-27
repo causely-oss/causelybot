@@ -3,7 +3,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: causelybot
-  namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -24,13 +23,13 @@ spec:
         - name: SLACK_WEBHOOK_URL
           valueFrom:
             secretKeyRef:
-              name: slack-webhook-secret
+              name: causelybot-secret
               key: webhook-url
         - name: BEARER_TOKEN
           valueFrom:
-              secretKeyRef:
-                name: bearer-token-secret
-                key: token
+            secretKeyRef:
+              name: causelybot-secret
+              key: token
         resources:
           limits:
             cpu: "1.0"
