@@ -37,3 +37,10 @@ spec:
           requests:
             cpu: "1.0"
             memory: "256Mi"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/causelybot
+      volumes:
+      - name: config
+        configMap:
+          name: causelybot-config

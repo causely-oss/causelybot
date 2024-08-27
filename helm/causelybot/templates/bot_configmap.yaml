@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: causelybot-config
+data:
+  config.yaml: |
+    filterConfig:
+      enabled: {{ .Values.filterConfig.enabled | default true }}
+      problemTypes:
+        {{- range .Values.filterConfig.problemTypes }}
+        - "{{ . }}"
+        {{- end }}
+      entityTypes:
+        {{- range .Values.filterConfig.entityTypes }}
+        - "{{ . }}"
+        {{- end }}
