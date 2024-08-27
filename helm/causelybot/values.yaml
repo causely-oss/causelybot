@@ -1,0 +1,11 @@
+# Default values for the Helm chart
+webhook:
+  url: "" # Required
+  token: "" # Required
+
+image:
+  repository: "" # Required
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1

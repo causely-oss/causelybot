@@ -1,0 +1,8 @@
+apiVersion: v2                 # Helm API version. Use "v2" for Helm 3 charts.
+name: causelybot               # Name of your Helm chart
+description: A Helm chart for deploying the CauselyBot service
+
+type: application              # This is an application chart (as opposed to a library chart)
+
+version: 0.1.0                 # Version of your Helm chart
+appVersion: "0.1.0"              # Version of your actual application (your bot)
