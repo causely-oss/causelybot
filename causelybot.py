@@ -10,9 +10,12 @@ def load_config():
     with open("/etc/causelybot/config.yaml", 'r') as stream:
         return yaml.safe_load(stream)
 
-config = load_config()
+def get_config():
+    return load_config()
 
 def filter_notification(payload):
+    # Load the config
+    config = get_config()
     payload_name = payload.get("name").lower()  # Normalize case
     payload_entity_type = payload.get("entityType").lower()  # Normalize case
 
