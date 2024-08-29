@@ -12,7 +12,6 @@ replicaCount: 1
 
 filterConfig:
   enabled: false
-  problemTypes:
-    - "Malfunction"
-  entityTypes:
-    - "Pod"
+  filters:
+    - problemType: "Malfunction"
+      entityType: "Pod"

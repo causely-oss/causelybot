@@ -7,8 +7,12 @@ class TestFilterNotification(unittest.TestCase):
     @patch('causelybot.load_config', return_value={
         "filterconfig": {
             "enabled": True,
-            "problemTypes": ["Malfunction"],
-            "entityTypes": ["Pod"]
+            "filters": [
+                {
+                    "problemType": "Malfunction",
+                    "entityType": "Pod"
+                }
+            ],
         }
     })
     def test_filter_allows_valid_payload(self, mock_load_config):
@@ -44,8 +48,12 @@ class TestFilterNotification(unittest.TestCase):
     @patch('causelybot.load_config', return_value={
         "filterconfig": {
             "enabled": True,
-            "problemTypes": ["Malfunction"],
-            "entityTypes": ["Pod"]
+            "filters": [
+                {
+                    "problemType": "",
+                    "entityType": "Pod"
+                }
+            ],
         }
     })
     def test_filter_blocks_invalid_entityType(self, mock_load_config):
@@ -70,8 +78,12 @@ class TestFilterNotification(unittest.TestCase):
     @patch('causelybot.load_config', return_value={
         "filterconfig": {
             "enabled": True,
-            "problemTypes": ["Malfunction"],
-            "entityTypes": ["Pod"]
+            "filters": [
+                {
+                    "problemType": "Malfunction",
+                    "entityType": ""
+                }
+            ],
         }
     })
     def test_filter_blocks_invalid_problemType(self, mock_load_config):
@@ -95,8 +107,7 @@ class TestFilterNotification(unittest.TestCase):
     @patch('causelybot.load_config', return_value={
         "filterconfig": {
             "enabled": False,
-            "problemTypes": ["Malfunction"],
-            "entityTypes": ["Pod"]
+            "filters": [],
         }
     })
     def test_filter_allows_all_payloads_when_filter_disabled(self, mock_load_config):
@@ -126,8 +137,12 @@ class TestFilterNotification(unittest.TestCase):
     @patch('causelybot.load_config', return_value={
         "filterconfig": {
             "enabled": True,
-            "problemTypes": ["FrequentCrash"],
-            "entityTypes": []
+            "filters": [
+                {
+                    "problemType": "FrequentCrash",
+                    "entityType": ""
+                }
+            ],
         }
     })
     def test_filter_allows_empty_entityType(self, mock_load_config):
@@ -151,8 +166,12 @@ class TestFilterNotification(unittest.TestCase):
     @patch('causelybot.load_config', return_value={
         "filterconfig": {
             "enabled": True,
-            "problemTypes": [],
-            "entityTypes": ["Pod"]
+            "filters": [
+                {
+                    "problemType": "",
+                    "entityType": "Pod"
+                }
+            ],
         }
     })
     def test_filter_allows_empty_problemType(self, mock_load_config):

@@ -62,9 +62,17 @@ A very simple filter configuration has been provided to filter notifications bas
 ```yaml
 filterConfig:
   enabled: false
-  problemTypes:
-    - "Malfunction"
-  entityTypes:
-    - "Pod"
+  filters:
+    - problemType: "Malfunction"
+      entityType: "Pod"
 ```
-Set the `enabled` flag to true to enable filtering and add the respective problemTypes and entityTypes for which you want to receive the notifications.
+Set the `enabled` flag to true to enable filtering and add the respective pairs of problemTypes and entityTypes for which you want to receive the notifications. If you want to allow notifications for only single filter then set the other to an empty string, for example:
+
+```yaml
+filterConfig:
+  enabled: true
+  filters:
+    - problemType: ""
+      entityType: "KubernetesService"
+```
+will allow all problem notifications for KubernetesService.

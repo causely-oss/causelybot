@@ -5,12 +5,9 @@ metadata:
 data:
   config.yaml: |
     filterConfig:
-      enabled: {{ .Values.filterConfig.enabled | default true }}
-      problemTypes:
-        {{- range .Values.filterConfig.problemTypes }}
-        - "{{ . }}"
-        {{- end }}
-      entityTypes:
-        {{- range .Values.filterConfig.entityTypes }}
-        - "{{ . }}"
+      enabled: {{ .Values.filterConfig.enabled | default false }}
+      filters:
+        {{- range .Values.filterConfig.filters }}
+        - problemType: "{{ .problemType }}"
+          entityType: "{{ .entityType }}"
         {{- end }}
