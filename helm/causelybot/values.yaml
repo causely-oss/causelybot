@@ -9,3 +9,9 @@ image:
   pullPolicy: IfNotPresent
 
 replicaCount: 1
+
+filterConfig:
+  enabled: false
+  filters:
+    - problemType: "Malfunction"
+      entityType: "Pod"

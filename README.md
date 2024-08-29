@@ -55,3 +55,24 @@ Payload fields:
 - `labels`: Metadata or tags that provide additional context (e.g., app name, Kubernetes namespace, and cluster information).
 - `entityId`: The unique identifier for the entity involved.
 - `objectId`: A unique identifier for the specific object associated with this event, in this case it's the defectID.
+
+## Filtering Notifications
+A very simple filter configuration has been provided to filter notifications based on `problemType` and `entityType`. This can be set by customizing the `filterconfig` map as seen below:
+
+```yaml
+filterConfig:
+  enabled: false
+  filters:
+    - problemType: "Malfunction"
+      entityType: "Pod"
+```
+Set the `enabled` flag to true to enable filtering and add the respective pairs of problemTypes and entityTypes for which you want to receive the notifications. If you want to allow notifications for only single filter then set the other to an empty string, for example:
+
+```yaml
+filterConfig:
+  enabled: true
+  filters:
+    - problemType: ""
+      entityType: "KubernetesService"
+```
+will allow all problem notifications for KubernetesService.
