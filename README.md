@@ -42,7 +42,7 @@ helm install bot ./helm/causelybot --namespace foo --set webhook.url="https://ho
 
 Below is an example of the notification payload in slack:
 
-![Slack Example](assets/slack.png "Slack Example")
+![Slack Example](assets/slack_notification.png "Slack Example")
 
 Payload fields:
 - `name`: The event name, in this case it's the problem name.
