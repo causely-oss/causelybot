@@ -17,7 +17,7 @@ def filter_notification(payload):
     # Load the config
     config = get_config()
     payload_name = payload.get("name").lower()  # Normalize case
-    payload_entity_type = payload.get("entityType").lower()  # Normalize case
+    payload_entity_type = payload.get("entity", {}).get("type", "").lower()  # Normalize case
 
     # If the config is not specified or the filter is not enabled, allow the payload
     if not config.get("filterconfig", {}).get("enabled", False):
