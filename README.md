@@ -45,16 +45,16 @@ Below is an example of the notification payload in slack:
 ![Slack Example](assets/slack.png "Slack Example")
 
 Payload fields:
-
-- `name`: The event name, in this case it's the defect name.
-- `type`: The type of notification.
-- `entityName`: The name of the entity that the notification is about.
-- `entityType`: The type of entity.
+- `name`: The event name, in this case it's the problem name.
+- `type`: The type of notification (e.g., "ProblemDetected").
+- `entity`: The details regarding the entity for which the notification is triggered:
+  - `id`: Id of the entity
+  - `name`: Name of the entity
+  - `type`: Type of the entity
 - `description`: A description of the issue.
 - `timestamp`: The timestamp when the issue was detected.
 - `labels`: Metadata or tags that provide additional context (e.g., app name, Kubernetes namespace, and cluster information).
-- `entityId`: The unique identifier for the entity involved.
-- `objectId`: A unique identifier for the specific object associated with this event, in this case it's the defectID.
+- `objectId`: A unique identifier for the specific object associated with this event, in this case it's the problem Id.
 
 ## Filtering Notifications
 A very simple filter configuration has been provided to filter notifications based on `problemType` and `entityType`. This can be set by customizing the `filterconfig` map as seen below:
