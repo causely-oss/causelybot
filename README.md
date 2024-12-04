@@ -8,8 +8,8 @@ Let's say we deploy our causelybot in a namespace `foo` then while installing th
 ```yaml
 notifications:
   webhook:
-    url: "http://causelybot.foo:5000/webhook"   # Replace with your webhook URL
-    token: "your-secret-token"                  # Replace with your webhook token
+    url: "http://causelybot.foo:5000/webhook/slack"   # Replace with your webhook URL
+    token: "your-secret-token"                        # Replace with your webhook token
     enabled: true
 ```
 
