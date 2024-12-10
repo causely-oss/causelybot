@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 
@@ -17,5 +19,5 @@ def parse_iso_date(iso_date_str):
         # Convert to human-readable format
         readable_date = parsed_date.strftime("%B %d, %Y at %I:%M:%S %p")
         return readable_date
-    except ValueError as e:
+    except ValueError:
         return iso_date_str
