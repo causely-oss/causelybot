@@ -1,11 +1,12 @@
-import json
+from __future__ import annotations
+
 import os
 import sys
-from datetime import datetime
 
-import requests
 import yaml
-from flask import Flask, jsonify, request
+from flask import Flask
+from flask import jsonify
+from flask import request
 
 from causely_notification.slack import forward_to_slack
 
@@ -26,7 +27,8 @@ def filter_notification(payload):
     config = get_config()
     payload_name = payload.get("name").lower()  # Normalize case
     payload_entity_type = payload.get("entity", {}).get(
-        "type", "").lower()  # Normalize case
+        "type", "",
+    ).lower()  # Normalize case
 
     # If the config is not specified or the filter is not enabled, allow the payload
     if not config.get("filterconfig", {}).get("enabled", False):

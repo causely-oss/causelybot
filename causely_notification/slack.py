@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import json
 import os
 import sys
 
 import requests
-import yaml
 
 from .date import parse_iso_date
 
@@ -20,7 +21,7 @@ def create_slack_description_block(payload):
         "block_id": "block1",
         "text": {
             "type": "mrkdwn",
-            "text": f"*Summary:*\n{summary}"
+            "text": f"*Summary:*\n{summary}",
         },
     }
     return b
@@ -36,8 +37,8 @@ def create_slack_remediation_option_block(payload):
         "block_id": "block2",
         "text": {
             "type": "mrkdwn",
-            "text": f"*Remediation: {ro[0].get('title')}*\n{ro[0].get('description')}"
-        }
+            "text": f"*Remediation: {ro[0].get('title')}*\n{ro[0].get('description')}",
+        },
     }
 
     link = payload.get("link", None)
@@ -47,11 +48,11 @@ def create_slack_remediation_option_block(payload):
             "text": {
                 "type": "plain_text",
                 "text": "View More",
-                "emoji": True
+                "emoji": True,
             },
             "value": "click_me_123",
             "url": link,
-            "action_id": "button-action"
+            "action_id": "button-action",
         }
 
     return b
@@ -63,59 +64,61 @@ def create_slack_values_block(payload):
         "fields": [
             {
                 "type": "mrkdwn",
-                "text": f"*Entity:*\n{payload.get('entity', {}).get('name')}"
+                "text": f"*Entity:*\n{payload.get('entity', {}).get('name')}",
             },
             {
                 "type": "mrkdwn",
-                "text": f"*When:*\n{parse_iso_date(payload.get('timestamp'))}"
+                "text": f"*When:*\n{parse_iso_date(payload.get('timestamp'))}",
             },
             {
                 "type": "mrkdwn",
-                "text": f"*Root Cause:*\n{payload.get('name')}"
+                "text": f"*Root Cause:*\n{payload.get('name')}",
             },
             {
                 "type": "mrkdwn",
-                "text": f"*Severity:*\n{payload.get('severity')}"
-            }
-        ]
+                "text": f"*Severity:*\n{payload.get('severity')}",
+            },
+        ],
     }
 
 
 def create_slack_detected_payload(payload):
-    blocks = [{
-        "type": "rich_text",
-        "elements": [{
-            "type": "rich_text_section",
+    blocks = [
+        {
+            "type": "rich_text",
             "elements": [{
-                "type": "emoji",
-                "name": "exclamation"
-            }]
-        }]
-    }, {
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": f"Root Cause {payload.get('name')} detected",
-        }
-    }]
+                "type": "rich_text_section",
+                "elements": [{
+                    "type": "emoji",
+                    "name": "exclamation",
+                }],
+            }],
+        }, {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"Root Cause {payload.get('name')} detected",
+            },
+        },
+    ]
 
     desc_block = create_slack_description_block(payload)
     if desc_block is not None:
         blocks.append(desc_block)
         blocks.append({
-            "type": "divider"
+            "type": "divider",
         })
 
     rem_block = create_slack_remediation_option_block(payload)
     if rem_block is not None:
         blocks.append(rem_block)
         blocks.append({
-            "type": "divider"
+            "type": "divider",
         })
 
     blocks.append(create_slack_values_block(payload))
     blocks.append({
-        "type": "divider"
+        "type": "divider",
     })
 
     buttons = []
@@ -127,11 +130,11 @@ def create_slack_detected_payload(payload):
             "text": {
                     "type": "plain_text",
                     "text": "View Root Cause",
-                    "emoji": True
+                    "emoji": True,
             },
             "value": "click_me_123",
             "url": link,
-            "action_id": "button-action"
+            "action_id": "button-action",
         })
 
     buttons.append({
@@ -139,10 +142,10 @@ def create_slack_detected_payload(payload):
         "text": {
                 "type": "plain_text",
                 "emoji": True,
-                "text": "Silence"
+                "text": "Silence",
         },
         "style": "primary",
-        "value": "silence"
+        "value": "silence",
     })
 
     blocks.append({
@@ -154,33 +157,35 @@ def create_slack_detected_payload(payload):
 
 
 def create_slack_cleared_payload(payload):
-    blocks = [{
-        "type": "rich_text",
-        "elements": [{
-            "type": "rich_text_section",
+    blocks = [
+        {
+            "type": "rich_text",
             "elements": [{
-                "type": "emoji",
-                "name": "white_check_mark"
-            }]
-        }]
-    }, {
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": f"Root Cause {payload.get('name')} cleared",
-        }
-    }]
+                "type": "rich_text_section",
+                "elements": [{
+                    "type": "emoji",
+                    "name": "white_check_mark",
+                }],
+            }],
+        }, {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"Root Cause {payload.get('name')} cleared",
+            },
+        },
+    ]
 
     desc_block = create_slack_description_block(payload)
     if desc_block is not None:
         blocks.append(desc_block)
         blocks.append({
-            "type": "divider"
+            "type": "divider",
         })
 
     blocks.append(create_slack_values_block(payload))
     blocks.append({
-        "type": "divider"
+        "type": "divider",
     })
 
     buttons = []
@@ -192,11 +197,11 @@ def create_slack_cleared_payload(payload):
             "text": {
                     "type": "plain_text",
                     "text": "View Root Cause",
-                    "emoji": True
+                    "emoji": True,
             },
             "value": "click_me_123",
             "url": link,
-            "action_id": "button-action"
+            "action_id": "button-action",
         })
 
         blocks.append({
