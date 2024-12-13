@@ -1,4 +1,7 @@
 {{- include "validateImageRepository" . -}}
+{{- include "validateWebhooks" . -}}
+{{- include "validateAuthToken" . -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,16 +23,27 @@ spec:
         ports:
         - containerPort: 5000
         env:
-        - name: SLACK_WEBHOOK_URL
+        # Global Auth Token for bot to authenticate with executor
+        - name: AUTH_TOKEN
           valueFrom:
             secretKeyRef:
-              name: causelybot-secret
-              key: webhook-url
-        - name: BEARER_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: causelybot-secret
+              name: causelybot-auth-secret
               key: token
+        
+        # Webhook environment variables (URL and TOKEN for each webhook)
+        {{- range .Values.webhooks }}
+        - name: URL_{{ .name | upper | replace " " "_" }}
+          valueFrom:
+            secretKeyRef:
+              name: causelybot-secret-{{ .name | lower | replace " " "-" }}
+              key: webhook-url
+        - name: TOKEN_{{ .name | upper | replace " " "_" }}
+          valueFrom:
+            secretKeyRef:
+              name: causelybot-secret-{{ .name | lower | replace " " "-" }}
+              key: token
+        {{- end }}
+        
         resources:
           limits:
             cpu: "1.0"

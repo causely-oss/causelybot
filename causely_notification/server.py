@@ -8,6 +8,7 @@ from flask import Flask
 from flask import jsonify
 from flask import request
 
+from causely_notification.filter import WebhookFilterStore
 from causely_notification.slack import forward_to_slack
 
 app = Flask(__name__)
@@ -22,40 +23,7 @@ def get_config():
     return load_config()
 
 
-def filter_notification(payload):
-    # Load the config
-    config = get_config()
-    payload_name = payload.get("name").lower()  # Normalize case
-    payload_entity_type = payload.get("entity", {}).get(
-        "type", "",
-    ).lower()  # Normalize case
-
-    # If the config is not specified or the filter is not enabled, allow the payload
-    if not config.get("filterconfig", {}).get("enabled", False):
-        return True
-
-    # Get filters from config
-    filters = config.get("filterconfig", {}).get("filters", [])
-
-    # Edge case: If filters are not specified correctly, allow all notifications
-    if not isinstance(filters, list):
-        return True
-
-    # Check if the payload matches any of the filter pairs or partial matches
-    for filter_pair in filters:
-        allowed_name = filter_pair.get("problemType", "").lower()
-        allowed_entity_type = filter_pair.get("entityType", "").lower()
-
-        # Check for full match or partial matches
-        if (allowed_name == payload_name or allowed_name == "") and \
-           (allowed_entity_type == payload_entity_type or allowed_entity_type == ""):
-            return True
-
-    # If no matching filter pair is found, do not allow the payload
-    return False
-
-
-EXPECTED_TOKEN = os.getenv("BEARER_TOKEN")
+EXPECTED_TOKEN = os.getenv("AUTH_TOKEN")
 
 
 @app.route('/webhook/slack', methods=['POST'])
@@ -65,19 +33,68 @@ def webhook_slack():
     if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
         payload = request.json
         # Check if the payload passes the filter
-        if filter_notification(payload):
+        matching_webhooks = filter_store.filter_payload(payload)
+        for name in matching_webhooks:
             # Forward the payload to Slack
-            response = forward_to_slack(payload)
+            response = forward_to_slack(
+                payload, webhook_lookup_map[name]['url'], webhook_lookup_map[name]['token'],
+            )
             if response.status_code == 200:
                 return jsonify({"message": "Payload forwarded to Slack"}), 200
             else:
                 print(response.content, file=sys.stderr)
                 return jsonify({"message": "Failed to forward to Slack"}), 500
-        else:
-            return jsonify({"message": "Payload filtered out"}), 200
     else:
         return jsonify({"message": "Unauthorized"}), 401
 
 
 if __name__ == '__main__':
+    # Step 1: Read the configuration file
+    config = get_config()
+    webhooks = config.get("webhooks", [])
+    if not webhooks:
+        raise ValueError("No webhooks found in the config.")
+
+    # Step 2: Initialize the webhook filter store
+    filter_store = WebhookFilterStore()
+
+    # Step 3: Map of webhook names to their (url, token) from environment variables
+    webhook_lookup_map = {}
+
+    for webhook in webhooks:
+        # Extract the webhook name and normalize it for the environment variable lookup
+        webhook_name = webhook.get("name")
+        if not webhook_name:
+            raise ValueError("Webhook name is required in the configuration.")
+
+        # Normalize the webhook name for environment variable lookup (uppercase and spaces to underscores)
+        normalized_name = webhook_name.upper().replace(" ", "_")
+
+        # Fetch the URL and Token for the webhook from environment variables
+        url_env_var = f"URL_{normalized_name}"
+        token_env_var = f"TOKEN_{normalized_name}"
+
+        url = os.getenv(url_env_var)
+        token = os.getenv(token_env_var)
+
+        if not url:
+            raise ValueError(f"Missing environment variable '{
+                             url_env_var
+                             }' for webhook '{webhook_name}'")
+
+        # Store the webhook URL and token in the lookup map
+        webhook_lookup_map[webhook_name] = {
+            'url': url,
+            'token': token,
+        }
+
+        # Extract and add filters for the webhook (if enabled)
+        filters = webhook.get("filters", {})
+        enabled = filters.get("enabled", False)
+        filter_values = filters.get("values", [])
+
+        # Add the webhook filters to the filter store
+        filter_store.add_webhook_filters(webhook_name, filter_values, enabled)
+
+    # Start the application
     app.run(host='0.0.0.0', port=5000)

@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 
 import requests
 
 from .date import parse_iso_date
-
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 
 
 def create_slack_description_block(payload):
@@ -212,7 +209,7 @@ def create_slack_cleared_payload(payload):
     return blocks
 
 
-def forward_to_slack(payload):
+def forward_to_slack(payload, slack_webhook_url, slack_webhook_token):
     # Prettify the payload and send it to Slack
     print(payload, file=sys.stderr)
     print(payload.get("type"), file=sys.stderr)
@@ -232,5 +229,8 @@ def forward_to_slack(payload):
 
     print(json.dumps(slack_data), file=sys.stderr)
 
-    headers = {'Content-Type': 'application/json'}
-    return requests.post(SLACK_WEBHOOK_URL, json=slack_data, headers=headers)
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {slack_webhook_token}',
+    }
+    return requests.post(slack_webhook_url, json=slack_data, headers=headers)
