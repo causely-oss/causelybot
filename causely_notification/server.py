@@ -34,6 +34,10 @@ def webhook_slack():
         payload = request.json
         # Check if the payload passes the filter
         matching_webhooks = filter_store.filter_payload(payload)
+        # If there are no matching webhooks, return 200 OK
+        if not matching_webhooks:
+            return jsonify({"message": "No matching webhooks found"}), 200
+        # Forward the payload to all matching webhooks
         for name in matching_webhooks:
             # Forward the payload to Slack
             response = forward_to_slack(

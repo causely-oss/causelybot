@@ -38,3 +38,15 @@ class Operator:
                 }",
             )
         return field_value in value
+
+    def _apply_not_equals(self, field_value, value):
+        return field_value != value
+
+    def _apply_not_in(self, field_value, value):
+        if not isinstance(value, list):
+            raise ValueError(
+                f"Operator 'not_in' requires a list as value, but got {
+                    type(value)
+                }",
+            )
+        return field_value not in value

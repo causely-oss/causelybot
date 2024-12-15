@@ -95,6 +95,10 @@ class FilterIndex:
         for field, filters in self.field_filters.items():
             field_value = self.field_registry.get_field_value(payload, field)
 
+            # If the field value is None, the filter does not match
+            if field_value is None:
+                return False
+
             # Check membership-based conditions using Bloom filter
             if filters['bloom'] is not None and field_value is not None:
                 if not filters['bloom'].check(str(field_value)):
