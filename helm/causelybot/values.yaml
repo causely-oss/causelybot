@@ -13,4 +13,8 @@ webhooks:
     url: "" # Required
     token: ""
     filters:
-      enabled: false
+      enabled: true
+      values:
+        - field: "impactsSLO"
+          operator: "equals"
+          value: True
