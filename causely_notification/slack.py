@@ -79,19 +79,38 @@ def create_slack_slo_blocks(payload):
         slo_link = slo_entity.get("link")
         slo_status = slo.get("status", "UNKNOWN")
 
-        # Construct the text line
-        # Example: "*AT_RISK*: <http://link|istio-system/prometheus-RequestSuccessRate>"
-        slo_text = f"*{slo_status}*: "
-        if slo_link:
-            slo_text += f"<{slo_link}|{slo_name}>"
-        else:
-            slo_text += slo_name
+        related_entity = slo.get("related_entity", {})
+        related_entity_name = related_entity.get("name", "Unknown Service")
+        related_entity_link = related_entity.get("link")
+        related_entity_text = f"<{related_entity_link}|{
+            related_entity_name
+        }>" if related_entity_link else related_entity_name
+
+        # Icons for status with tooltip text (hover over icon)
+        status_icons = {
+            "AT_RISK": {"icon": ":warning:", "tooltip": "At Risk"},
+            "HEALTHY": {"icon": ":white_check_mark:", "tooltip": "Healthy"},
+            "VIOLATED": {"icon": ":x:", "tooltip": "Violated"},
+            "NORMAL": {"icon": ":grey_question:", "tooltip": "Normal"},
+            "UNKNOWN": {"icon": ":grey_question:", "tooltip": "Unknown"},
+        }
+        status_data = status_icons.get(
+            slo_status, {"icon": ":grey_question:", "tooltip": slo_status},
+        )
+
+        # Construct the SLO text visually appealing with impacted service
+        slo_text_lines = []
+        icon_with_status = f"{status_data['icon']} *<{slo_link}|{slo_name}>* ({status_data['tooltip']})" if slo_link else f"{
+            status_data['icon']
+        } *{slo_name}* ({status_data['tooltip']})"
+        slo_text_lines.append(icon_with_status)
+        slo_text_lines.append(f"\t- *Impacted Service:* {related_entity_text}")
 
         blocks.append({
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": slo_text,
+                "text": "\n".join(slo_text_lines),
             },
         })
 
@@ -99,47 +118,38 @@ def create_slack_slo_blocks(payload):
 
 
 def create_slack_values_block(payload):
+    entity = payload.get("entity", {})
+    entity_name = entity.get("name", "Unknown Entity")
+    entity_link = entity.get("link")
+    entity_text = f"<{entity_link}|{
+        entity_name
+    }>" if entity_link else entity_name
+
     return {
         "type": "section",
-        "fields": [
-            {
-                "type": "mrkdwn",
-                "text": f"*Entity:*\n{payload.get('entity', {}).get('name')}",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f"*When:*\n{parse_iso_date(payload.get('timestamp'))}",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f"*Root Cause:*\n{payload.get('name')}",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f"*Severity:*\n{payload.get('severity')}",
-            },
-        ],
+        "text": {
+            "type": "mrkdwn",
+            "text": (
+                f"*Severity:* {payload.get('severity')}\n"
+                f"*Affected Entity:* {entity_text}\n"
+                f"*Identified At:* {parse_iso_date(payload.get('timestamp'))}"
+            ),
+        },
     }
 
 
 def create_slack_detected_payload(payload):
     blocks = [
         {
-            "type": "rich_text",
-            "elements": [{
-                "type": "rich_text_section",
-                "elements": [{
-                    "type": "emoji",
-                    "name": "exclamation",
-                }],
-            }],
-        }, {
-            "type": "header",
+            "type": "section",
             "text": {
-                "type": "plain_text",
-                "text": f"Root Cause {payload.get('name')} detected",
+                "type": "mrkdwn",
+                "text": f":exclamation: *Root Cause Identified: {payload.get('name')}*",
             },
         },
+        {"type": "divider"},
+        create_slack_values_block(payload),
+        {"type": "divider"},
     ]
 
     desc_block = create_slack_description_block(payload)
@@ -161,11 +171,6 @@ def create_slack_detected_payload(payload):
     if slo_blocks is not None:
         blocks.extend(slo_blocks)
         blocks.append({"type": "divider"})
-
-    blocks.append(create_slack_values_block(payload))
-    blocks.append({
-        "type": "divider",
-    })
 
     buttons = []
 
@@ -195,21 +200,15 @@ def create_slack_detected_payload(payload):
 def create_slack_cleared_payload(payload):
     blocks = [
         {
-            "type": "rich_text",
-            "elements": [{
-                "type": "rich_text_section",
-                "elements": [{
-                    "type": "emoji",
-                    "name": "white_check_mark",
-                }],
-            }],
-        }, {
-            "type": "header",
+            "type": "section",
             "text": {
-                "type": "plain_text",
-                "text": f"Root Cause {payload.get('name')} cleared",
+                "type": "mrkdwn",
+                "text": f":white_check_mark: *Root Cause Cleared: {payload.get('name')}*",
             },
         },
+        {"type": "divider"},
+        create_slack_values_block(payload),
+        {"type": "divider"},
     ]
 
     desc_block = create_slack_description_block(payload)
@@ -218,11 +217,6 @@ def create_slack_cleared_payload(payload):
         blocks.append({
             "type": "divider",
         })
-
-    blocks.append(create_slack_values_block(payload))
-    blocks.append({
-        "type": "divider",
-    })
 
     buttons = []
 
