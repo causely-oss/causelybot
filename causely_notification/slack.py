@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 
 import requests
 
 from .date import parse_iso_date
-
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 
 
 def create_slack_description_block(payload):
@@ -56,6 +53,49 @@ def create_slack_remediation_option_block(payload):
         }
 
     return b
+
+
+def create_slack_slo_blocks(payload):
+    slos = payload.get("slos", [])
+    if not slos:
+        return None
+
+    # We'll return multiple blocks: a header and a section for each SLO
+    blocks = []
+
+    # Add a header for impacted SLOs
+    blocks.append({
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": "Impacted SLOs",
+        },
+    })
+
+    # Add each SLO as a section block
+    for slo in slos:
+        slo_entity = slo.get("slo_entity", {})
+        slo_name = slo_entity.get("name", "Unknown SLO")
+        slo_link = slo_entity.get("link")
+        slo_status = slo.get("status", "UNKNOWN")
+
+        # Construct the text line
+        # Example: "*AT_RISK*: <http://link|istio-system/prometheus-RequestSuccessRate>"
+        slo_text = f"*{slo_status}*: "
+        if slo_link:
+            slo_text += f"<{slo_link}|{slo_name}>"
+        else:
+            slo_text += slo_name
+
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": slo_text,
+            },
+        })
+
+    return blocks
 
 
 def create_slack_values_block(payload):
@@ -116,6 +156,12 @@ def create_slack_detected_payload(payload):
             "type": "divider",
         })
 
+    # Add SLO blocks if they exist
+    slo_blocks = create_slack_slo_blocks(payload)
+    if slo_blocks is not None:
+        blocks.extend(slo_blocks)
+        blocks.append({"type": "divider"})
+
     blocks.append(create_slack_values_block(payload))
     blocks.append({
         "type": "divider",
@@ -137,21 +183,11 @@ def create_slack_detected_payload(payload):
             "action_id": "button-action",
         })
 
-    buttons.append({
-        "type": "button",
-        "text": {
-                "type": "plain_text",
-                "emoji": True,
-                "text": "Silence",
-        },
-        "style": "primary",
-        "value": "silence",
-    })
-
-    blocks.append({
-        "type": "actions",
-        "elements": buttons,
-    })
+    if buttons:
+        blocks.append({
+            "type": "actions",
+            "elements": buttons,
+        })
 
     return blocks
 
@@ -212,7 +248,7 @@ def create_slack_cleared_payload(payload):
     return blocks
 
 
-def forward_to_slack(payload):
+def forward_to_slack(payload, slack_webhook_url, slack_webhook_token):
     # Prettify the payload and send it to Slack
     print(payload, file=sys.stderr)
     print(payload.get("type"), file=sys.stderr)
@@ -232,5 +268,8 @@ def forward_to_slack(payload):
 
     print(json.dumps(slack_data), file=sys.stderr)
 
-    headers = {'Content-Type': 'application/json'}
-    return requests.post(SLACK_WEBHOOK_URL, json=slack_data, headers=headers)
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {slack_webhook_token}',
+    }
+    return requests.post(slack_webhook_url, json=slack_data, headers=headers)
