@@ -8,10 +8,35 @@ Let's say we deploy our causelybot in a namespace `foo` then while installing th
 ```yaml
 notifications:
   webhook:
-    url: "http://causelybot.foo:5000/webhook/slack"   # Replace with your webhook URL
+    url: "http://causelybot.foo:5000/webhook/jira"    # Replace with your webhook URL
     token: "your-secret-token"                        # Replace with your webhook token
     enabled: true
 ```
+or
+```yaml
+notifications:
+  webhook:
+    url: "http://causelybot.foo:5000/webhook/opsgenie" # Replace with your webhook URL
+    token: "your-secret-token"                         # Replace with your webhook token
+    enabled: true
+```
+or
+```yaml
+notifications:
+  webhook:
+    url: "http://causelybot.foo:5000/webhook/slack"    # Replace with your webhook URL
+    token: "your-secret-token"                         # Replace with your webhook token
+    enabled: true
+```
+or
+```yaml
+notifications:
+  webhook:
+    url: "http://causelybot.foo:5000/webhook/teams"    # Replace with your webhook URL
+    token: "your-secret-token"                         # Replace with your webhook token
+    enabled: true
+```
+
 The executor also needs to be enabled and deployed with our causely agents. This can be done by enabling it in the `values.yaml` as follows:
 
 ```yaml
@@ -34,8 +59,7 @@ cd causelybot
 Build the Docker image for our causelybot as follows:
 
 ```shell
-docker build -t <repository>:<tag> .
-docker push <repository>:<tag>
+docker buildx build -t us-docker.pkg.dev/public-causely/public/bot --platform linux/amd64,linux/arm64 --push .
 ```
 
 ### Helm Install
