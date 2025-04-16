@@ -10,7 +10,8 @@ COPY requirements.txt requirements.txt
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy only the causely_notification directory
+COPY causely_notification/ causely_notification/
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000

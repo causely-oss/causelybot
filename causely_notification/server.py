@@ -9,7 +9,9 @@ from flask import jsonify
 from flask import request
 
 from causely_notification.filter import WebhookFilterStore
+from causely_notification.jira import forward_to_jira
 from causely_notification.slack import forward_to_slack
+from causely_notification.teams import forward_to_teams
 
 app = Flask(__name__)
 
@@ -25,6 +27,53 @@ def get_config():
 
 EXPECTED_TOKEN = os.getenv("AUTH_TOKEN")
 
+@app.route('/webhook/jira', methods=['POST'])
+def webhook_jira():
+    # Check for Bearer token in Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
+        payload = request.json
+        # Check if the payload passes the filter
+        matching_webhooks = filter_store.filter_payload(payload)
+        # If there are no matching webhooks, return 200 OK
+        if not matching_webhooks:
+            return jsonify({"message": "No matching webhooks found"}), 200
+        # Forward the payload to all matching webhooks
+        for name in matching_webhooks:
+            jira_url = webhook_lookup_map[name]['url']
+            jira_token = webhook_lookup_map[name]['token']
+            response = forward_to_jira(payload, jira_url, jira_token)
+            if response.status_code in (200, 201):  # Jira returns 201 for created issues
+                return jsonify({"message": "Payload forwarded to Jira"}), 200
+            else:
+                print(response.content, file=sys.stderr)
+                return jsonify({"message": "Failed to forward to Jira"}), 500
+    else:
+        return jsonify({"message": "Unauthorized"}), 401
+
+@app.route('/webhook/opsgenie', methods=['POST'])
+def webhook_opsgenie():
+    # Check for Bearer token in Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
+        payload = request.json
+        # Check if the payload passes the filter
+        matching_webhooks = filter_store.filter_payload(payload)
+        # If there are no matching webhooks, return 200 OK
+        if not matching_webhooks:
+            return jsonify({"message": "No matching webhooks found"}), 200
+        # Forward the payload to all matching webhooks
+        for name in matching_webhooks:
+            opsgenie_url = webhook_lookup_map[name]['url']
+            opsgenie_token = webhook_lookup_map[name]['token']
+            response = forward_to_opsgenie(payload, opsgenie_url, opsgenie_token)
+            if response.status_code == 202:  # Opsgenie returns 202 for success
+                return jsonify({"message": "Payload forwarded to Opsgenie"}), 200
+            else:
+                print(response.content, file=sys.stderr)
+                return jsonify({"message": "Failed to forward to Opsgenie"}), 500
+    else:
+        return jsonify({"message": "Unauthorized"}), 401
 
 @app.route('/webhook/slack', methods=['POST'])
 def webhook_slack():
@@ -48,6 +97,29 @@ def webhook_slack():
             else:
                 print(response.content, file=sys.stderr)
                 return jsonify({"message": "Failed to forward to Slack"}), 500
+    else:
+        return jsonify({"message": "Unauthorized"}), 401
+
+@app.route('/webhook/teams', methods=['POST'])
+def webhook_teams():
+    # Check for Bearer token in Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
+        payload = request.json
+        # Check if the payload passes the filter
+        matching_webhooks = filter_store.filter_payload(payload)
+        # If there are no matching webhooks, return 200 OK
+        if not matching_webhooks:
+            return jsonify({"message": "No matching webhooks found"}), 200
+        # Forward the payload to all matching webhooks
+        for name in matching_webhooks:
+            teams_url = webhook_lookup_map[name]['url']
+            response = forward_to_teams(payload, teams_url)
+            if response.status_code == 200:
+                return jsonify({"message": "Payload forwarded to Teams"}), 200
+            else:
+                print(response.content, file=sys.stderr)
+                return jsonify({"message": "Failed to forward to Teams"}), 500
     else:
         return jsonify({"message": "Unauthorized"}), 401
 

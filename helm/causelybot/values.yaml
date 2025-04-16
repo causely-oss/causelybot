@@ -1,5 +1,5 @@
 image:
-  repository: "" # Required
+  repository: us-docker.pkg.dev/public-causely/public/bot
   tag: "latest"
   pullPolicy: IfNotPresent
 
