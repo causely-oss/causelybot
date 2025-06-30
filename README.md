@@ -1,4 +1,5 @@
-# Causelybot
+# causelybot
+
 causelybot is a webhook service designed to receive and authenticate incoming payloads, process them, and forward the relevant information to external systems such as Slack. This server-side application validates bearer tokens included in the payload, ensuring secure communication. Once authenticated, the bot forwards the payload to a specified Slack channel using a pre-configured Slack webhook URL, enabling streamlined notifications and updates.
 
 ## Causely Webhook endpoint configuration
@@ -12,7 +13,9 @@ notifications:
     token: "your-secret-token"                        # Replace with your webhook token
     enabled: true
 ```
+
 or
+
 ```yaml
 notifications:
   webhook:
@@ -20,15 +23,20 @@ notifications:
     token: "your-secret-token"                         # Replace with your webhook token
     enabled: true
 ```
+
 or
+
 ```yaml
 notifications:
   webhook:
     url: "http://causelybot.foo:5000/webhook/slack"    # Replace with your webhook URL
     token: "your-secret-token"                         # Replace with your webhook token
     enabled: true
+
 ```
+
 or
+
 ```yaml
 notifications:
   webhook:
@@ -44,18 +52,19 @@ executor:
   enabled: true
 ```
 
-The causely bot will just forward the incoming payload to another endpoint. The example below is shown on Slack but it can be configured for Discord, PagerDuty e.t.c. 
+The causelybot will just forward the incoming payload to another endpoint. The example below is shown on Slack but it can be configured for Discord, PagerDuty etc.
 
 ## Usage
 
-### Clone the directory
+### Clone the repository
 
 ```shell
-git clone git@github.com:Causely/causelybot.git
+git clone git@github.com:causely-oss/causelybot.git
 cd causelybot
 ```
 
 ### Docker Build
+
 Build the Docker image for our causelybot as follows:
 
 ```shell
@@ -125,6 +134,7 @@ Below is an example of what a problem detected notification looks like in slack:
 ![Slack Example](assets/slack_detect_notification.png "Slack Example")
 
 Payload fields:
+
 - `name`: The event name, in this case it's the problem name.
 - `type`: The type of notification (e.g., "ProblemDetected").
 - `entity`: The details regarding the entity for which the notification is triggered:
@@ -139,22 +149,26 @@ Payload fields:
 - `slos`: If this field exists then it lists the impacted SLOs.
 
 ## Filtering Notifications
+
 ### Field Registery
+
 Filtering notifications can be done based on pre-defined fields or custom defined fields in [FIELD_DEFINITIONS](causely_notification/field_registry.py). Few examples of fields definitions are shown below:
 
-```python
+```json
 {
     "severity": {"type": "direct", "path": "severity"},
     "entity.type": {"type": "direct", "path": "entity.type"},
     "impactsSLO": {"type": "computed", "func": "compute_impact_slo"},
 }
 ```
+
 We have defined the fields on which we want to do the filtering. There are two types of fields: `direct` and `computed`:
 
 - Direct field means that the value of field can be parsed by following a path in nested dictionary. For example in the raw payload you have entity as the key and value is a dict containing more information and if we want to retrieve type then we provide the fully path with a dot notation as shown above.
 - Computed field means that some computation must be done on the payload to get the value of that field. Refer to the the example `impactsSLO` which we use to decide if a payload consisted of any impacted SLOs and use that as a filter.
 
 ### Filter Operators
+
 We have provided support for certain operators to do the comparison between `operand1` and `operand2` for filtering:
 
 - `equals`: This is used to compare whether a specific field in a payload matches the given value:
@@ -186,6 +200,7 @@ webhooks:
           operator: "in"
           value: ["High", "Critical"]
 ```
+
 We also support the inverse-operations like `not_equals` and `not_in` as well. You can also provide multiple filters for a webhook like:
 
 ```yaml
@@ -205,6 +220,7 @@ webhooks:
 ```
 
 ## Multiple Webhooks
+
 We also support providing multiple webhooks each with their own sets of filters:
 
 ```yaml
