@@ -165,9 +165,10 @@ def create_teams_detected_payload(payload):
             "text": "---"
         })
 
+    action_block = []
     link = payload.get("link", None)
     if link is not None:
-        body.append({
+        action_block.append({
             "type": "Action.OpenUrl",
             "title": "View Root Cause",
             "url": link
@@ -180,6 +181,7 @@ def create_teams_detected_payload(payload):
             "content": {
                 "type": "AdaptiveCard",
                 "body": body,
+                "actions": action_block,
                 "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                 "version": "1.2"
             }
@@ -214,9 +216,10 @@ def create_teams_cleared_payload(payload):
             "text": "---"
         })
 
+    action_block = []
     link = payload.get("link", None)
     if link is not None:
-        body.append({
+        action_block.append({
             "type": "Action.OpenUrl",
             "title": "View Root Cause",
             "url": link
@@ -229,6 +232,7 @@ def create_teams_cleared_payload(payload):
             "content": {
                 "type": "AdaptiveCard",
                 "body": body,
+                "actions": action_block,
                 "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                 "version": "1.2"
             }
@@ -246,7 +250,7 @@ def forward_to_teams(payload, teams_webhook_url):
     else:
         teams_data = create_teams_cleared_payload(payload)
 
-    print(json.dumps(teams_data), file=sys.stderr)
+    print(json.dumps(teams_data, indent=2), file=sys.stderr)
 
     headers = {
         'Content-Type': 'application/json'
