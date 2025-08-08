@@ -132,7 +132,7 @@ def webhook_teams():
         for name in matching_webhooks:
             teams_url = webhook_lookup_map[name]['url']
             response = forward_to_teams(payload, teams_url)
-            if response.status_code == 200:
+            if response.status_code in [200, 202]:
                 return jsonify({"message": "Payload forwarded to Teams"}), 200
             else:
                 print(response.content, file=sys.stderr)
