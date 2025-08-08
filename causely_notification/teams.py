@@ -165,9 +165,10 @@ def create_teams_detected_payload(payload):
             "text": "---"
         })
 
+    action_block = []
     link = payload.get("link", None)
     if link is not None:
-        body.append({
+        action_block.append({
             "type": "Action.OpenUrl",
             "title": "View Root Cause",
             "url": link
@@ -180,6 +181,7 @@ def create_teams_detected_payload(payload):
             "content": {
                 "type": "AdaptiveCard",
                 "body": body,
+                "actions": action_block,
                 "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                 "version": "1.2"
             }
@@ -214,9 +216,10 @@ def create_teams_cleared_payload(payload):
             "text": "---"
         })
 
+    action_block = []
     link = payload.get("link", None)
     if link is not None:
-        body.append({
+        action_block.append({
             "type": "Action.OpenUrl",
             "title": "View Root Cause",
             "url": link
@@ -229,26 +232,63 @@ def create_teams_cleared_payload(payload):
             "content": {
                 "type": "AdaptiveCard",
                 "body": body,
+                "actions": action_block,
                 "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                 "version": "1.2"
             }
         }]
     }
 
+def make_error_response(status_code: int, message: str) -> requests.Response:
+    """
+    Create a synthetic requests.Response object with a given status code and message.
+    Useful for returning a consistent error response when HTTP calls fail.
+    """
+    resp = requests.Response()
+    resp.status_code = status_code
+    resp._content = message.encode("utf-8")
+    resp.reason = message  # optional, sets a short description
+    resp.url = ""  # optional: can set to the original request URL
+    return resp
+
 
 def forward_to_teams(payload, teams_webhook_url):
+    # Validate webhook URL
+    if not teams_webhook_url:
+        print("ERROR: Teams webhook URL is not configured", file=sys.stderr)
+        return make_error_response(500, "Teams webhook URL not configured".encode('utf-8'))
+
     # Prettify the payload and send it to Teams
-    print(payload, file=sys.stderr)
-    print(payload.get("type"), file=sys.stderr)
+    print(f"Processing Teams webhook for payload type: {payload.get('type')}", file=sys.stderr)
+    print(f"Teams webhook URL: {teams_webhook_url}", file=sys.stderr)
 
     if payload.get("type") == "ProblemDetected":
         teams_data = create_teams_detected_payload(payload)
     else:
         teams_data = create_teams_cleared_payload(payload)
 
-    print(json.dumps(teams_data), file=sys.stderr)
+    print(f"Teams message data: {json.dumps(teams_data, indent=2)}", file=sys.stderr)
 
     headers = {
         'Content-Type': 'application/json'
     }
-    return requests.post(teams_webhook_url, json=teams_data, headers=headers) 
+
+    try:
+        print(f"Sending request to Teams webhook...", file=sys.stderr)
+        response = requests.post(teams_webhook_url, json=teams_data, headers=headers, timeout=30)
+        print(f"Teams webhook response status: {response.status_code}", file=sys.stderr)
+        print(f"Teams webhook response content: {response.content}", file=sys.stderr)
+
+        if response.status_code in [200, 202]:
+            print("Teams webhook request successful", file=sys.stderr)
+        else:
+            print(f"Teams webhook failed with status {response.status_code}: {response.text}", file=sys.stderr)
+
+        return response
+    except requests.exceptions.Timeout:
+        error_msg = "Teams webhook request timed out after 30 seconds"
+        print(error_msg, file=sys.stderr)
+        return make_error_response(500, f"Request failed: {str(e)}".encode('utf-8'))
+    except requests.exceptions.RequestException as e:
+        print(f"Exception occurred while sending to Teams webhook: {e}", file=sys.stderr)
+        return make_error_response(500, f"Request failed: {str(e)}".encode('utf-8'))

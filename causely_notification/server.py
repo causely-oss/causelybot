@@ -28,6 +28,7 @@ from causely_notification.filter import WebhookFilterStore
 from causely_notification.jira import forward_to_jira
 from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
+from causely_notification.opsgenie import forward_to_opsgenie
 
 app = Flask(__name__)
 
@@ -131,7 +132,7 @@ def webhook_teams():
         for name in matching_webhooks:
             teams_url = webhook_lookup_map[name]['url']
             response = forward_to_teams(payload, teams_url)
-            if response.status_code == 200:
+            if response.status_code in [200, 202]:
                 return jsonify({"message": "Payload forwarded to Teams"}), 200
             else:
                 print(response.content, file=sys.stderr)
