@@ -28,6 +28,7 @@ from causely_notification.filter import WebhookFilterStore
 from causely_notification.jira import forward_to_jira
 from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
+from causely_notification.opsgenie import forward_to_opsgenie
 
 app = Flask(__name__)
 
