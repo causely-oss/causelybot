@@ -44,7 +44,6 @@ def get_config():
 
 EXPECTED_TOKEN = os.getenv("AUTH_TOKEN")
 
-@app.route('/webhook/jira', methods=['POST'])
 def webhook_jira():
     # Check for Bearer token in Authorization header
     auth_header = request.headers.get('Authorization')
@@ -68,7 +67,6 @@ def webhook_jira():
     else:
         return jsonify({"message": "Unauthorized"}), 401
 
-@app.route('/webhook/opsgenie', methods=['POST'])
 def webhook_opsgenie():
     # Check for Bearer token in Authorization header
     auth_header = request.headers.get('Authorization')
@@ -92,7 +90,6 @@ def webhook_opsgenie():
     else:
         return jsonify({"message": "Unauthorized"}), 401
 
-@app.route('/webhook/slack', methods=['POST'])
 def webhook_slack():
     # Check for Bearer token in Authorization header
     auth_header = request.headers.get('Authorization')
@@ -117,7 +114,40 @@ def webhook_slack():
     else:
         return jsonify({"message": "Unauthorized"}), 401
 
-@app.route('/webhook/teams', methods=['POST'])
+@app.route('/webhook', methods=['POST'])
+def webhook_routing():
+    # Check for Bearer token in Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
+        payload = request.json
+        # Check if the payload passes the filter
+        matching_webhooks = filter_store.filter_payload(payload)
+        # If there are no matching webhooks, return 200 OK
+        if not matching_webhooks:
+            return jsonify({"message": "No matching webhooks found"}), 200
+        # Forward the payload to all matching webhooks
+        for name in matching_webhooks:
+            hook_url = webhook_lookup_map[name]['url']
+            hook_type = webhook_lookup_map[name]['hook_type']
+            match hook_type.lower():  # case-insensitive
+                case "teams":
+                    response = forward_to_teams(payload, hook_url)
+                case "slack":
+                    response = forward_to_slack(payload, hook_url)
+                case "opsgenie":
+                    response = forward_to_opsgenie(payload, hook_url)
+                case "jira":
+                    response = forward_to_jira(payload, hook_url)
+                case _:
+                    return jsonify({"message": "Unknown hook type"}), 500
+            if response.status_code in [200, 202]:
+                return jsonify({"message": "Payload forwarded to Teams"}), 200
+            else:
+                print(response.content, file=sys.stderr)
+                return jsonify({"message": "Failed to forward to Teams"}), 500
+    else:
+        return jsonify({"message": "Unauthorized"}), 401
+
 def webhook_teams():
     # Check for Bearer token in Authorization header
     auth_header = request.headers.get('Authorization')
@@ -169,6 +199,7 @@ if __name__ == '__main__':
 
         url = os.getenv(url_env_var)
         token = os.getenv(token_env_var)
+        hook_type = "none"
 
         if not url:
             raise ValueError(f"Missing environment variable '{
@@ -179,6 +210,7 @@ if __name__ == '__main__':
         webhook_lookup_map[webhook_name] = {
             'url': url,
             'token': token,
+            'hook_type': hook_type,
         }
 
         # Extract and add filters for the webhook (if enabled)
