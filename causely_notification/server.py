@@ -120,9 +120,13 @@ if __name__ == '__main__':
     for webhook in webhooks:
         # Extract the webhook name, type, url, and token
         webhook_name = webhook.get("name")  # REQUIRED
-        webhook_type = webhook.get("hook_type")  # REQUIRED
+        if not webhook_name:
+            raise ValueError("Webhook name is required in the configuration.")
         # Normalize the webhook name for environment variable lookup (uppercase and spaces to underscores)
         normalized_name = webhook_name.upper().replace(" ", "_")
+        webhook_type = webhook.get("hook_type")  # REQUIRED
+        if not webhook_type:
+            raise ValueError("Webhook type is required in the configuration.")
 
         # Get the url and token and env vars.  In kubernetes this should be a
         # secret.  In docker, create env vars
@@ -135,10 +139,6 @@ if __name__ == '__main__':
             raise ValueError(f"Missing environment variable '{
             url_env_var
             }' for webhook '{webhook_name}'")
-        if not webhook_name:
-            raise ValueError("Webhook name is required in the configuration.")
-        if not webhook_type:
-            raise ValueError("Webhook type is required in the configuration.")
 
         # Store the webhook URL and token in the lookup map
         webhook_lookup_map[webhook_name] = {
