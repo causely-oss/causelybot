@@ -44,75 +44,6 @@ def get_config():
 
 EXPECTED_TOKEN = os.getenv("AUTH_TOKEN")
 
-def webhook_jira():
-    # Check for Bearer token in Authorization header
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
-        payload = request.json
-        # Check if the payload passes the filter
-        matching_webhooks = filter_store.filter_payload(payload)
-        # If there are no matching webhooks, return 200 OK
-        if not matching_webhooks:
-            return jsonify({"message": "No matching webhooks found"}), 200
-        # Forward the payload to all matching webhooks
-        for name in matching_webhooks:
-            jira_url = webhook_lookup_map[name]['url']
-            jira_token = webhook_lookup_map[name]['token']
-            response = forward_to_jira(payload, jira_url, jira_token)
-            if response.status_code in (200, 201):  # Jira returns 201 for created issues
-                return jsonify({"message": "Payload forwarded to Jira"}), 200
-            else:
-                print(response.content, file=sys.stderr)
-                return jsonify({"message": "Failed to forward to Jira"}), 500
-    else:
-        return jsonify({"message": "Unauthorized"}), 401
-
-def webhook_opsgenie():
-    # Check for Bearer token in Authorization header
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
-        payload = request.json
-        # Check if the payload passes the filter
-        matching_webhooks = filter_store.filter_payload(payload)
-        # If there are no matching webhooks, return 200 OK
-        if not matching_webhooks:
-            return jsonify({"message": "No matching webhooks found"}), 200
-        # Forward the payload to all matching webhooks
-        for name in matching_webhooks:
-            opsgenie_url = webhook_lookup_map[name]['url']
-            opsgenie_token = webhook_lookup_map[name]['token']
-            response = forward_to_opsgenie(payload, opsgenie_url, opsgenie_token)
-            if response.status_code == 202:  # Opsgenie returns 202 for success
-                return jsonify({"message": "Payload forwarded to Opsgenie"}), 200
-            else:
-                print(response.content, file=sys.stderr)
-                return jsonify({"message": "Failed to forward to Opsgenie"}), 500
-    else:
-        return jsonify({"message": "Unauthorized"}), 401
-
-def webhook_slack():
-    # Check for Bearer token in Authorization header
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
-        payload = request.json
-        # Check if the payload passes the filter
-        matching_webhooks = filter_store.filter_payload(payload)
-        # If there are no matching webhooks, return 200 OK
-        if not matching_webhooks:
-            return jsonify({"message": "No matching webhooks found"}), 200
-        # Forward the payload to all matching webhooks
-        for name in matching_webhooks:
-            # Forward the payload to Slack
-            response = forward_to_slack(
-                payload, webhook_lookup_map[name]['url'], webhook_lookup_map[name]['token'],
-            )
-            if response.status_code == 200:
-                return jsonify({"message": "Payload forwarded to Slack"}), 200
-            else:
-                print(response.content, file=sys.stderr)
-                return jsonify({"message": "Failed to forward to Slack"}), 500
-    else:
-        return jsonify({"message": "Unauthorized"}), 401
 
 @app.route('/webhook', methods=['POST'])
 def webhook_routing():
@@ -126,47 +57,49 @@ def webhook_routing():
         if not matching_webhooks:
             return jsonify({"message": "No matching webhooks found"}), 200
         # Forward the payload to all matching webhooks
+        # Track successful and failed forwards
+        successful_forwards = []
+        failed_forwards = []
+
         for name in matching_webhooks:
             hook_url = webhook_lookup_map[name]['url']
             hook_type = webhook_lookup_map[name]['hook_type']
+            hook_token = webhook_lookup_map[name]['token']
             match hook_type.lower():  # case-insensitive
                 case "teams":
                     response = forward_to_teams(payload, hook_url)
                 case "slack":
-                    response = forward_to_slack(payload, hook_url)
+                    response = forward_to_slack(payload, hook_url, hook_token)
                 case "opsgenie":
-                    response = forward_to_opsgenie(payload, hook_url)
+                    response = forward_to_opsgenie(payload, hook_url, hook_token)
                 case "jira":
-                    response = forward_to_jira(payload, hook_url)
+                    response = forward_to_jira(payload, hook_url, hook_token)
                 case _:
-                    return jsonify({"message": "Unknown hook type"}), 500
-            if response.status_code in [200, 202]:
-                return jsonify({"message": "Payload forwarded to Teams"}), 200
-            else:
-                print(response.content, file=sys.stderr)
-                return jsonify({"message": "Failed to forward to Teams"}), 500
-    else:
-        return jsonify({"message": "Unauthorized"}), 401
+                    failed_forwards.append(f"Unknown hook type: {hook_type}")
+                    continue
 
-def webhook_teams():
-    # Check for Bearer token in Authorization header
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
-        payload = request.json
-        # Check if the payload passes the filter
-        matching_webhooks = filter_store.filter_payload(payload)
-        # If there are no matching webhooks, return 200 OK
-        if not matching_webhooks:
-            return jsonify({"message": "No matching webhooks found"}), 200
-        # Forward the payload to all matching webhooks
-        for name in matching_webhooks:
-            teams_url = webhook_lookup_map[name]['url']
-            response = forward_to_teams(payload, teams_url)
             if response.status_code in [200, 202]:
-                return jsonify({"message": "Payload forwarded to Teams"}), 200
+                successful_forwards.append(name)
             else:
-                print(response.content, file=sys.stderr)
-                return jsonify({"message": "Failed to forward to Teams"}), 500
+                print(f"Failed to forward to {name}: {response.content}", file=sys.stderr)
+                failed_forwards.append(name)
+
+        # Return appropriate response based on results
+        # If all forwards are successful, return 200 (all successful)
+        # If some forwards are successful and some are not, return 207 (partial success)
+        # If all forwards fail, return 500 (all failed)
+        if successful_forwards and not failed_forwards:
+            print(f"Payload forwarded to: {', '.join(successful_forwards)}", file=sys.stderr)
+            return jsonify({"message": f"Payload forwarded to: {', '.join(successful_forwards)}"}), 200
+        elif successful_forwards and failed_forwards:
+            print(
+                f"Partially successful. Succeeded: {', '.join(successful_forwards)}, Failed: {', '.join(failed_forwards)}",
+                file=sys.stderr)
+            return jsonify({
+                               "message": f"Partially successful. Succeeded: {', '.join(successful_forwards)}, Failed: {', '.join(failed_forwards)}"}), 207
+        else:
+            print(f"Failed to forward to any webhooks: {', '.join(failed_forwards)}", file=sys.stderr)
+            return jsonify({"message": f"Failed to forward to any webhooks: {', '.join(failed_forwards)}"}), 500
     else:
         return jsonify({"message": "Unauthorized"}), 401
 
@@ -185,32 +118,24 @@ if __name__ == '__main__':
     webhook_lookup_map = {}
 
     for webhook in webhooks:
-        # Extract the webhook name and normalize it for the environment variable lookup
-        webhook_name = webhook.get("name")
+        # Extract the webhook name, type, url, and token
+        webhook_name = webhook.get("name")  # REQUIRED
+        webhook_type = webhook.get("hook_type")  # REQUIRED
+        webhook_url = webhook.get("url")  # REQUIRED
+        webhook_token = webhook.get("token")  # OPTIONAL
+
         if not webhook_name:
             raise ValueError("Webhook name is required in the configuration.")
-
-        # Normalize the webhook name for environment variable lookup (uppercase and spaces to underscores)
-        normalized_name = webhook_name.upper().replace(" ", "_")
-
-        # Fetch the URL and Token for the webhook from environment variables
-        url_env_var = f"URL_{normalized_name}"
-        token_env_var = f"TOKEN_{normalized_name}"
-
-        url = os.getenv(url_env_var)
-        token = os.getenv(token_env_var)
-        hook_type = "none"
-
-        if not url:
-            raise ValueError(f"Missing environment variable '{
-                             url_env_var
-                             }' for webhook '{webhook_name}'")
+        if not webhook_type:
+            raise ValueError("Webhook type is required in the configuration.")
+        if not webhook_url:
+            raise ValueError("Webhook url is required in the configuration.")
 
         # Store the webhook URL and token in the lookup map
         webhook_lookup_map[webhook_name] = {
-            'url': url,
-            'token': token,
-            'hook_type': hook_type,
+            'url': webhook_url,
+            'token': webhook_token,
+            'hook_type': webhook_type,
         }
 
         # Extract and add filters for the webhook (if enabled)
