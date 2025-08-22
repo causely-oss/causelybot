@@ -22,12 +22,13 @@ image:
 replicaCount: 1
 
 auth:
-  token: "<YOUR_CAUSELYBOT_TOKEN>" # Required
+  token: "" # Required
 
 webhooks:
-  - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie]
-    filters: # Optional
+  - name: "" # Required
+    url: "" # Required
+    token: ""
+    filters:
       enabled: true
       values:
         - field: "impactsSLO"
