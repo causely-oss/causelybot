@@ -2,26 +2,15 @@
 
 CauselyBot is a webhook service designed to receive and authenticate incoming payloads, process them, and forward the relevant information to external systems such as Slack, Teams, Jira, and OpsGenie. This server-side application validates bearer tokens included in the payload, ensuring secure communication. Once authenticated, the bot forwards the payload to specified channels using pre-configured webhook URLs, enabling streamlined notifications and updates.
 
-## Causely Webhook endpoint configuration
+## Overview
 
-To configure Causely to send notifications to CauselyBot, you need to update your `causely-values.yaml` file to include the following configuration:
+To get up and running with CauselyBot, follow these steps:
 
-```yaml
-executor:
-  enabled: true
+1. **Configure CauselyBot** - Set up your webhook configurations, authentication token, and filtering rules
+2. **Deploy CauselyBot** - Install and deploy the service using Docker or Helm
+3. **Configure Causely** - Update your Causely instance to send notifications to CauselyBot
 
-notifications:
-  webhook:
-    url: "http://<CAUSELYBOT_FQDN/IP>:5000/webhook"    
-    token: "<YOUR_CAUSELYBOT_TOKEN>"
-    enabled: true
-```
-
-**Important Notes:**
-- Replace `<CAUSELYBOT_FQDN/IP>` with the actual FQDN or IP address where CauselyBot is deployed
-- Replace `<YOUR_CAUSELYBOT_TOKEN>` with the same token you configure in CauselyBot (see configuration section below)
-- The executor must be enabled for webhook notifications to work
-- CauselyBot will automatically route notifications to the appropriate external systems based on your configuration
+See the sections below for detailed configuration and deployment instructions.
 
 ## CauselyBot Configuration
 
@@ -30,13 +19,6 @@ notifications:
 Here's an example `values.yaml` file for deploying CauselyBot:
 
 ```yaml
-image:
-  repository: us-docker.pkg.dev/public-causely/public/bot
-  tag: "latest"
-  pullPolicy: IfNotPresent
-
-replicaCount: 1
-
 auth:
   token: "<YOUR_CAUSELYBOT_TOKEN>" # Required - define your token here and then use in the Causely configuration (causely-values.yaml)
 
@@ -85,6 +67,27 @@ For example, if you have a webhook named "slack-notifications", you would set:
 
 **Filtering:**
 You can configure filters for each webhook to control which notifications are forwarded. See the "Filtering Notifications" section below for details.
+
+## Causely Webhook endpoint configuration
+
+To configure Causely to send notifications to CauselyBot, you need to update your `causely-values.yaml` file to include the following configuration:
+
+```yaml
+executor:
+  enabled: true
+
+notifications:
+  webhook:
+    url: "http://<CAUSELYBOT_FQDN/IP>:5000/webhook"    
+    token: "<YOUR_CAUSELYBOT_TOKEN>"
+    enabled: true
+```
+
+**Important Notes:**
+- Replace `<CAUSELYBOT_FQDN/IP>` with the actual FQDN or IP address where CauselyBot is deployed
+- Replace `<YOUR_CAUSELYBOT_TOKEN>` with the same token you configure in CauselyBot (see configuration section above)
+- The executor must be enabled for webhook notifications to work
+- CauselyBot will automatically route notifications to the appropriate external systems based on your configuration
 
 ## Usage
 
