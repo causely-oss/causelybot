@@ -27,6 +27,8 @@ auth:
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
     hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie]
+    url: "<YOUR_WEBHOOK_URL>" # Required
+    token: "<YOUR_WEBHOOK_TOKEN>" # Optional
     filters: # Optional
       enabled: true
       values:
