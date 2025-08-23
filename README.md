@@ -1,85 +1,101 @@
-# causelybot
+# CauselyBot
 
-causelybot is a webhook service designed to receive and authenticate incoming payloads, process them, and forward the relevant information to external systems such as Slack. This server-side application validates bearer tokens included in the payload, ensuring secure communication. Once authenticated, the bot forwards the payload to a specified Slack channel using a pre-configured Slack webhook URL, enabling streamlined notifications and updates.
+CauselyBot is a webhook service designed to receive and authenticate incoming payloads, process them, and forward the relevant information to external systems such as Slack, Teams, Jira, and OpsGenie. This server-side application validates bearer tokens included in the payload, ensuring secure communication. Once authenticated, the bot forwards the payload to specified channels using pre-configured webhook URLs, enabling streamlined notifications and updates.
 
-## Causely Webhook endpoint configuration
+## Overview
 
-Let's say we deploy our causelybot in a namespace `foo` then while installing the our causely agents we can configure the webhook endpoint as follows in the `values.yaml`:
+To get up and running with CauselyBot, follow these steps:
 
-```yaml
-notifications:
-  webhook:
-    url: "http://causelybot.foo:5000/webhook/jira"    # Replace with your webhook URL
-    token: "your-secret-token"                        # Replace with your webhook token
-    enabled: true
-```
+1. **Configure CauselyBot** - Set up your webhook configurations, authentication token, and filtering rules
+2. **Deploy CauselyBot** - Install and deploy the service using Docker or Helm
+3. **Configure Causely** - Update your Causely instance to send notifications to CauselyBot
+4. **Test CauselyBot** - Confirm your CauselyBot sends alerts to your webhook endpoints
 
-or
+See the sections below for detailed configuration and deployment instructions.
 
-```yaml
-notifications:
-  webhook:
-    url: "http://causelybot.foo:5000/webhook/opsgenie" # Replace with your webhook URL
-    token: "your-secret-token"                         # Replace with your webhook token
-    enabled: true
-```
-
-or
-
-```yaml
-notifications:
-  webhook:
-    url: "http://causelybot.foo:5000/webhook/slack"    # Replace with your webhook URL
-    token: "your-secret-token"                         # Replace with your webhook token
-    enabled: true
-
-```
-
-or
-
-```yaml
-notifications:
-  webhook:
-    url: "http://causelybot.foo:5000/webhook/teams"    # Replace with your webhook URL
-    token: "your-secret-token"                         # Replace with your webhook token
-    enabled: true
-```
-
-The executor also needs to be enabled and deployed with our causely agents. This can be done by enabling it in the `values.yaml` as follows:
-
-```yaml
-executor:
-  enabled: true
-```
-
-The causelybot will just forward the incoming payload to another endpoint. The example below is shown on Slack but it can be configured for Discord, PagerDuty etc.
-
-## Usage
+## 1. CauselyBot Configuration
 
 ### Clone the repository
 
 ```shell
-git clone git@github.com:causely-oss/causelybot.git
-cd causelybot
+git clone https://github.com/causely-oss/causelybot.git
+```
+CauselyBot Docker images are pre-built and published to `us-docker.pkg.dev/public-causely/public/bot:latest`. See Appendix section for building image locally. 
+
+
+### Configure Webhook
+Create a `causelybot-values.yaml` file with your configuration. Use the example below and update the following fields:
+  - `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml` 
+  - `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
+  - `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`
+  - `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
+  - `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
+
+
+```yaml
+auth:
+  token: "<YOUR_CAUSELYBOT_TOKEN>" # Required - define your token here and then use in the Causely configuration (causely-values.yaml)
+
+webhooks:
+  - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie]
+    url: "<YOUR_WEBHOOK_URL>" # Required
+    token: "<YOUR_WEBHOOK_TOKEN>" # Optional
+    filters: # Optional - see Filtering Notifications
+      enabled: true
+      values:
+        - field: "impactsSLO"
+          operator: "equals"
+          value: True
 ```
 
-### Docker Build
-
-Build the Docker image for our causelybot as follows:
+## 2. Deploy Causelybot
+Install via Helm using the `causelybot-values.yaml` file:
 
 ```shell
-docker buildx build -t us-docker.pkg.dev/public-causely/public/bot --platform linux/amd64,linux/arm64 --push .
+helm upgrade --install causelybot ./causelybot/helm/causelybot --namespace causelybot --values causelybot-values.yaml
 ```
 
-### Helm Install
 
-```shell
-helm install bot ./helm/causelybot --namespace foo --set webhooks[0].url="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX" --set auth.token="your-secret-token" --set image.repository="<repository>" --set image.tag="<tag>"
+## 3. Configure Causely
+
+To configure Causely to send notifications to CauselyBot, you must enable the `executor` and specify the CauselyBot endpoint. Add the following entries to your `causely-values.yaml` file:
+
+```yaml
+executor:
+  enabled: true
+
+notifications:
+  webhook:
+    url: "http://<CAUSELYBOT_FQDN/IP>:5000/webhook"
+    token: "<YOUR_CAUSELYBOT_TOKEN>"
+    enabled: true
 ```
 
-## Notification Payload
+**Important Notes:**
+- Replace `<CAUSELYBOT_FQDN/IP>` with the actual FQDN or IP address where CauselyBot is deployed. If deployed within the same cluster in the causelybot namespace, use:<br>
+  `causelybot.causelybot.svc.cluster.local`
+- Replace `<YOUR_CAUSELYBOT_TOKEN>` with the same token you configured in CauselyBot (see configuration section above)
+- See [Causely's Documentation](https://docs.causely.ai/installation/customize/) for additional details on `causely-values.yaml` usage
 
-Below is an example of what the raw payload looks as:
+Apply the changes to Causely:
+```bash
+helm upgrade --install causely --create-namespace oci://us-docker.pkg.dev/public-causely/public/causely --version <version> --namespace=causely --values </path/to/causely-values.yaml>
+```
+
+
+## 4. Test CauselyBot
+1. To confirm your webhook has been configured correctly, in Causely, navigate to Gear Icon > Integrations > [Webhooks](https://portal.causely.app/integrations?tab=webhooks)
+2. Click "Send Test Notification" to trigger a test payload. 
+3. If the configuration is working, a test payload will be sent from the Executor to CauselyBot to your wehbook endpoint(s). If you do not receive the test notification, you can check the logs of the executor and causelybot for more details:
+   - `kubectl logs -f deploy/executor -n causely`
+   - `kubectl logs -f deploy/causelybot -n causelybot`
+
+
+## Appendix
+### Notification Payload
+
+Below is an example of the raw payload sent from the Executor to CauselyBot:
 
 ```json
 {
@@ -129,7 +145,7 @@ Below is an example of what the raw payload looks as:
 }
 ```
 
-Below is an example of what a problem detected notification looks like in slack:
+Below is an example of what a root cause notification looks like in Slack:
 
 ![Slack Example](assets/slack_detect_notification.png "Slack Example")
 
@@ -148,11 +164,11 @@ Payload fields:
 - `severity`: This is the severity of the problem detected/cleared.
 - `slos`: If this field exists then it lists the impacted SLOs.
 
-## Filtering Notifications
+### Filtering Notifications
 
-### Field Registery
+#### Field Registery
 
-Filtering notifications can be done based on pre-defined fields or custom defined fields in [FIELD_DEFINITIONS](causely_notification/field_registry.py). Few examples of fields definitions are shown below:
+Filtering notifications can be done based on pre-defined fields or custom defined fields in [FIELD_DEFINITIONS](causely_notification/field_registry.py). A few examples of fields definitions are shown below:
 
 ```json
 {
@@ -162,22 +178,21 @@ Filtering notifications can be done based on pre-defined fields or custom define
 }
 ```
 
-We have defined the fields on which we want to do the filtering. There are two types of fields: `direct` and `computed`:
+The fields on which filtering can be done are defined in the field registry. There are two types of fields: `direct` and `computed`:
 
-- Direct field means that the value of field can be parsed by following a path in nested dictionary. For example in the raw payload you have entity as the key and value is a dict containing more information and if we want to retrieve type then we provide the fully path with a dot notation as shown above.
-- Computed field means that some computation must be done on the payload to get the value of that field. Refer to the the example `impactsSLO` which we use to decide if a payload consisted of any impacted SLOs and use that as a filter.
+- Direct field means that the value of field can be parsed by following a path in nested dictionary. For example in the raw payload you have entity as the key and value is a dict containing more information and if you want to retrieve type then you provide the full path with a dot notation as shown above.
+- Computed field means that some computation must be done on the payload to get the value of that field. Refer to the example `impactsSLO` which is used to decide if a payload consisted of any impacted SLOs and use that as a filter.
 
-### Filter Operators
+#### Filter Operators
 
-We have provided support for certain operators to do the comparison between `operand1` and `operand2` for filtering:
+CauselyBot provides support for certain operators to do the comparison between `operand1` and `operand2` for filtering:
 
 - `equals`: This is used to compare whether a specific field in a payload matches the given value:
 
 ```yaml
 webhooks:
   - name: "slack-malfunction"
-    url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-    token: ""
+    hook_type: "slack"
     filters:
       enabled: true
       values:
@@ -191,8 +206,7 @@ webhooks:
 ```yaml
 webhooks:
   - name: "slack-severity"
-    url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-    token: ""
+    hook_type: "slack"
     filters:
       enabled: true
       values:
@@ -201,13 +215,12 @@ webhooks:
           value: ["High", "Critical"]
 ```
 
-We also support the inverse-operations like `not_equals` and `not_in` as well. You can also provide multiple filters for a webhook like:
+CauselyBot also supports inverse operations like `not_equals` and `not_in`. Multiple filters can be provided for a webhook like:
 
 ```yaml
 webhooks:
   - name: "slack-malfunction-slo"
-    url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-    token: ""
+    hook_type: "slack"
     filters:
       enabled: true
       values:
@@ -219,15 +232,16 @@ webhooks:
           value: True
 ```
 
-## Multiple Webhooks
+### Multiple Webhooks
 
-We also support providing multiple webhooks each with their own sets of filters:
+CauselyBot also supports providing multiple webhooks each with their own sets of filters:
 
 ```yaml
 webhooks:
   - name: "slack-malfunction-slo"
+    hook_type: "slack"
     url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-    token: ""
+    token: "xoxb-1234567890-1234567890-XXXXXXXXXXXXXXXXXXXXXXXX"
     filters:
       enabled: true
       values:
@@ -237,13 +251,33 @@ webhooks:
         - field: "impactsSLO"
           operator: "equals"
           value: True
-  - name: "slack-severity"
-    url: "https://hooks.slack.com/services/T00000000/B00000001/XXXXXXXXXXXXXXXXXXXXXXXX"
-    token: ""
+  - name: "jira-critical-tickets"
+    hook_type: "jira"
+    url: "https://your-domain.atlassian.net/rest/api/3/issue"
+    token: "your-jira-token"
     filters:
       enabled: true
       values:
         - field: "severity"
           operator: "in"
           value: ["High", "Critical"]
+  - name: "teams-all-notifications"
+    hook_type: "teams"
+    url: "https://your-domain.webhook.office.com/webhookb2/..."
+    filters:
+      enabled: false # No filtering - receives all notifications
+```
+
+
+### Docker Image
+
+CauselyBot Docker images are pre-built and published to:
+```
+us-docker.pkg.dev/public-causely/public/bot:latest
+```
+
+If you need to build the image locally for development or custom modifications:
+
+```shell
+docker buildx build -t us-docker.pkg.dev/public-causely/public/bot --platform linux/amd64,linux/arm64 --push .
 ```

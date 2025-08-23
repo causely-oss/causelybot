@@ -23,6 +23,7 @@ data:
     webhooks:
       {{- range .Values.webhooks }}
       - name: "{{ .name }}"
+        hook_type: "{{ .hook_type }}"
         filters:
           enabled: {{ if hasKey . "filters" }}{{ .filters.enabled | default false }}{{ else }}false{{ end }}
           values:{{ if and (hasKey . "filters") (hasKey .filters "values") }}
