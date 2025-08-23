@@ -14,9 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-{{- include "validateImageRepository" . -}}
-{{- include "validateWebhooks" . -}}
-{{- include "validateAuthToken" . -}}
+{{- include "validateImageRepository" . }}
+{{- include "validateWebhooks" . }}
+{{- include "validateAuthToken" . }}
 
 apiVersion: apps/v1
 kind: Deployment
