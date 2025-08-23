@@ -241,7 +241,7 @@ webhooks:
   - name: "slack-malfunction-slo"
     hook_type: "slack"
     url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-    token: "<your_token>"
+    token: "xoxb-1234567890-1234567890-XXXXXXXXXXXXXXXXXXXXXXXX"
     filters:
       enabled: true
       values:
@@ -254,7 +254,7 @@ webhooks:
   - name: "jira-critical-tickets"
     hook_type: "jira"
     url: "https://your-domain.atlassian.net/rest/api/3/issue"
-    token: "<your_token>"
+    token: "your-jira-token"
     filters:
       enabled: true
       values:
