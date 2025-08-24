@@ -22,6 +22,7 @@ import sys
 import requests
 
 from .date import parse_iso_date
+from .utils import check_problem_detected
 
 
 def create_jira_description(payload):
@@ -123,7 +124,7 @@ def forward_to_jira(payload, jira_api_url, jira_auth_token):
     print(payload, file=sys.stderr)
     print(payload.get("type"), file=sys.stderr)
 
-    type_ = "Root Cause Identified" if payload.get("type") == "ProblemDetected" else "Root Cause Cleared"
+    type_ = "Root Cause Identified" if check_problem_detected(payload) else "Root Cause Cleared"
     jira_data = create_jira_payload(payload, type_)
 
     headers = {
