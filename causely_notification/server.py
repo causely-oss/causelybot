@@ -54,7 +54,6 @@ def webhook_routing():
         payload = request.json
         # Check if the payload passes the filter
         matching_webhooks = filter_store.filter_payload(payload)
-        print("Checking matching webhooks")
 
         notifType = payload.get("type", "ProblemDetected")
         # Specialized handling for problem updated, only send the notification
@@ -97,7 +96,6 @@ def webhook_routing():
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue
 
-            print(response)
             if response.status_code in [200, 202]:
                 successful_forwards.append(name)
             else:
@@ -130,7 +128,6 @@ def populate_webhooks(webhooks):
 
     # Step 3: Map of webhook names to their (url, token) from environment variables
     webhook_lookup_map = {}
-    print([w["name"] for w in webhooks])
 
     for webhook in webhooks:
         # Extract the webhook name, type, url, and token
