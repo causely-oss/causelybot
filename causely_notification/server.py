@@ -24,6 +24,8 @@ from flask import Flask
 from flask import jsonify
 from flask import request
 
+from typing import Dict, Any
+
 from causely_notification.filter import WebhookFilterStore
 from causely_notification.jira import forward_to_jira
 from causely_notification.slack import forward_to_slack
@@ -44,7 +46,6 @@ def get_config():
 
 EXPECTED_TOKEN = os.getenv("AUTH_TOKEN")
 
-
 @app.route('/webhook', methods=['POST'])
 def webhook_routing():
     # Check for Bearer token in Authorization header
@@ -53,6 +54,23 @@ def webhook_routing():
         payload = request.json
         # Check if the payload passes the filter
         matching_webhooks = filter_store.filter_payload(payload)
+
+        notifType = payload.get("type", "ProblemDetected")
+        # Specialized handling for problem updated, only send the notification
+        # when it wasn't sent before, or it was sent before but the severity reduced
+        if notifType == "ProblemUpdated":
+            # put the payload old severity into the payload and check which webhooks
+            # would have previously matched
+            tempPayload = request.json
+            oldSeverity = tempPayload.get("old_severity", "")
+            if oldSeverity != "":
+                tempPayload["severity"] = oldSeverity
+                old_matches = filter_store.filter_payload(tempPayload)
+                # Check if it matched before but didn't know - send an update
+                # Check if it didn't match before but does not - send an update
+                # Otherwise, no need to send an update - so get the webhooks that aren't in both sets
+                new_matches = list(set(old_matches) ^ set(matching_webhooks))
+                matching_webhooks = new_matches
         # If there are no matching webhooks, return 200 OK
         if not matching_webhooks:
             return jsonify({"message": "No matching webhooks found"}), 200
@@ -103,13 +121,7 @@ def webhook_routing():
     else:
         return jsonify({"message": "Unauthorized"}), 401
 
-
-if __name__ == '__main__':
-    # Step 1: Read the configuration file
-    config = get_config()
-    webhooks = config.get("webhooks", [])
-    if not webhooks:
-        raise ValueError("No webhooks found in the config.")
+def populate_webhooks(webhooks):
 
     # Step 2: Initialize the webhook filter store
     filter_store = WebhookFilterStore()
@@ -154,6 +166,14 @@ if __name__ == '__main__':
 
         # Add the webhook filters to the filter store
         filter_store.add_webhook_filters(webhook_name, filter_values, enabled)
+    return filter_store, webhook_lookup_map
 
+if __name__ == '__main__':
+    # Step 1: Read the configuration file
+    config = get_config()
+    webhooks = config.get("webhooks", [])
+    if not webhooks:
+        raise ValueError("No webhooks found in the config.")
+    filter_store, webhook_lookup_map = populate_webhooks(webhooks)
     # Start the application
     app.run(host='0.0.0.0', port=5000)

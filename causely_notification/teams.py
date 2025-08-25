@@ -22,6 +22,7 @@ import sys
 import requests
 
 from .date import parse_iso_date
+from .utils import check_problem_detected
 
 
 def create_teams_description_block(payload):
@@ -262,7 +263,7 @@ def forward_to_teams(payload, teams_webhook_url):
     print(f"Processing Teams webhook for payload type: {payload.get('type')}", file=sys.stderr)
     print(f"Teams webhook URL: {teams_webhook_url}", file=sys.stderr)
 
-    if payload.get("type") == "ProblemDetected":
+    if check_problem_detected(payload):
         teams_data = create_teams_detected_payload(payload)
     else:
         teams_data = create_teams_cleared_payload(payload)

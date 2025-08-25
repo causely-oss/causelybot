@@ -22,6 +22,7 @@ import sys
 import requests
 
 from .date import parse_iso_date
+from .utils import check_problem_detected
 
 
 def create_slack_description_block(payload):
@@ -263,7 +264,7 @@ def forward_to_slack(payload, slack_webhook_url, slack_webhook_token):
     print(payload, file=sys.stderr)
     print(payload.get("type"), file=sys.stderr)
 
-    if payload.get("type") == "ProblemDetected":
+    if check_problem_detected(payload):
         slack_data = {
             "username": "Causely",
             "icon_emoji": ":causely:",

@@ -22,6 +22,7 @@ import sys
 import requests
 
 from .date import parse_iso_date
+from .utils import check_problem_detected
 
 
 def create_opsgenie_description(payload):
@@ -97,7 +98,7 @@ def forward_to_opsgenie(payload, opsgenie_api_url, opsgenie_api_key):
     print(payload, file=sys.stderr)
     print(payload.get("type"), file=sys.stderr)
 
-    type_ = "Root Cause Identified" if payload.get("type") == "ProblemDetected" else "Root Cause Cleared"
+    type_ = "Root Cause Identified" if check_problem_detected(payload) else "Root Cause Cleared"
     opsgenie_data = create_opsgenie_payload(payload, type_)
 
     headers = {
