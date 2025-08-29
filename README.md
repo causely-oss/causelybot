@@ -74,7 +74,7 @@ notifications:
 
 **Important Notes:**
 - Replace `<CAUSELYBOT_FQDN/IP>` with the actual FQDN or IP address where CauselyBot is deployed. If deployed within the same cluster in the causelybot namespace, use:<br>
-  `causelybot.causelybot.svc.cluster.local`
+  `causelybot.causelybot.svc.cluster.local.`
 - Replace `<YOUR_CAUSELYBOT_TOKEN>` with the same token you configured in CauselyBot (see configuration section above)
 - See [Causely's Documentation](https://docs.causely.ai/installation/customize/) for additional details on `causely-values.yaml` usage
 
