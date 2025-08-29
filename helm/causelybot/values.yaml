@@ -32,6 +32,6 @@ webhooks:
     filters: # Optional
       enabled: true
       values:
-        - field: "impactsSLO"
-          operator: "equals"
-          value: True
+        - field: "severity"
+          operator: "in"
+          value: ["High", "Critical"]

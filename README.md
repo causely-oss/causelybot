@@ -44,9 +44,9 @@ webhooks:
     filters: # Optional - see Filtering Notifications
       enabled: true
       values:
-        - field: "impactsSLO"
-          operator: "equals"
-          value: True
+        - field: "severity"
+          operator: "in"
+          value: ["High", "Critical"]
 ```
 
 ## 2. Deploy Causelybot
