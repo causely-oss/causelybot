@@ -53,11 +53,13 @@ spec:
             secretKeyRef:
               name: causelybot-secret-{{ .name | lower | replace " " "-" }}
               key: webhook-url
+        {{- if .token }}
         - name: TOKEN_{{ .name | upper | replace " " "_" }}
           valueFrom:
             secretKeyRef:
               name: causelybot-secret-{{ .name | lower | replace " " "-" }}
               key: token
+        {{- end }}
         {{- end }}
         
         resources:
