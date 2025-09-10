@@ -22,8 +22,8 @@ from __future__ import annotations
 FIELD_DEFINITIONS = {
     "severity": {"type": "direct", "path": "severity"},
     "entity.type": {"type": "direct", "path": "entity.type"},
-    "labels.k8s.cluster.name": {"type": "direct", "path": "labels.k8s.cluster.name"},
-    "labels.k8s.namespace.name": {"type": "direct", "path": "labels.k8s.namespace.name"},
+    "labels.k8s.cluster.name": {"type": "map_path", "path": "labels", "map_key": "k8s.cluster.name"},
+    "labels.k8s.namespace.name": {"type": "map_path", "path": "labels", "map_key": "k8s.namespace.name"},
     "impactsSLO": {"type": "computed", "func": "compute_impact_slo"},
     "name": {"type": "direct", "path": "name"},
 }
@@ -55,6 +55,12 @@ class FieldRegistry:
                                      field_name
                                      }' not found.")
                 self.register_field(field_name, func)
+            elif config['type'] == 'map_path':
+                self.register_field(
+                    field_name, self._create_extractor_for_map_path(
+                        config['path'], config['map_key']
+                    ),
+                )
 
     def register_field(self, field_name, extractor_func):
         """Register a field with an extraction function."""
@@ -76,6 +82,10 @@ class FieldRegistry:
         """Return an extractor function for a simple dot-notated field path."""
         return lambda payload: get_nested_value(payload, field_path.split('.'))
 
+    def _create_extractor_for_map_path(self, field_path, map_key):
+        """Return an extractor function for a simple dot-notated field path."""
+        return lambda payload: get_map_value(payload, field_path, map_key)
+
 
 def get_nested_value(obj, path):
     """Get the value from a nested dictionary using dot notation."""
@@ -90,6 +100,17 @@ def get_nested_value(obj, path):
             return None
     return obj
 
+def get_map_value(obj, field, key):
+    # First test for a direct field then
+    # try a path
+    if field in obj:
+        map_value = obj[field]
+    else:
+        map_value = get_nested_value(obj, field)
+    if key in map_value:
+        return map_value[key]
+    else:
+        return None
 
 def compute_impact_slo(payload):
     """Compute if the SLO is impacted."""

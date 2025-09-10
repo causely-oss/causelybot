@@ -4,6 +4,7 @@ from unittest.mock import patch, Mock
 import yaml
 import os
 import textwrap
+os.environ["URL_SLACK-ALL-ALERTS"] = "http://test_slack"
 os.environ["URL_SLACK-MALFUNCTION-SLO"] = "http://test_slack"
 os.environ["URL_SLACK-SEVERITY"] = "http://test_slack"
 os.environ["AUTH_TOKEN"] = "test-token"
@@ -119,6 +120,30 @@ test_payload_update_same = {
     }
 }
 
+test_payload_for_filters = {
+	"link": "https://portal.causely.app",
+	"name": "Causely: Test Notification 20",
+	"type": "ProblemCleared",
+	"entity": {
+		"id": "2c990ff-7c5c-5a4f-a004-f6a1a9a58b85",
+		"link": "https://portal.causely.app",
+		"name": "the-most-important-service",
+		"type": "Node"
+	},
+	"labels": {
+		"k8s.cluster.name": "my-important-services-cluster",
+		"gcp.resource.zone": "https://www.googleapis.com/compute/v1/projects/example-project/zones/us-central1-a",
+		"causely.ai/cluster": "production"
+	},
+	"objectId": "2ac21477-61f3-4ae0-9fc4-0c1ea43ff727",
+	"severity": "Critical",
+	"timestamp": "2025-06-27T19:15:16.410543344Z",
+	"description": {
+		"details": "UI Test Notification",
+		"summary": "UI Test Notification."
+	}
+}
+
 yaml_text = textwrap.dedent("""
 webhooks:
   - name: "slack-severity"
@@ -144,6 +169,19 @@ webhooks:
         - field: "impactsSLO"
           operator: "equals"
           value: true
+""")
+
+config_test_yaml = textwrap.dedent("""
+webhooks:
+  - name: "slack-all-alerts" # Required
+    hook_type: "slack" # Required [slack, teams, jira, opsgenie]
+    url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+    filters: # Optional - see Filtering Notifications
+      enabled: true
+      values:
+        - field: "labels.k8s.cluster.name"
+          operator: "in"
+          value: ["my-important-services-cluster"]
 """)
 
 @patch("requests.post")
@@ -252,3 +290,31 @@ def test_webhook_posts_expected_payload4(mock_post):
 
     # Assertions
     assert mock_post.call_count == 0
+
+@patch("requests.post")
+# Mock post to webhooks with 1 matching webhook
+def test_webhook_posts_expected_payload_filtered(mock_post):
+    # 2) minimal stub for SECOND call (only to avoid network / errors)
+    second_resp = Mock(status_code=202)
+    second_resp.json.return_value = {"ok": True}
+    second_resp.raise_for_status.return_value = None
+
+    mock_post.side_effect = [second_resp]
+
+    webhook_data = yaml.safe_load(config_test_yaml)
+    webhooks = webhook_data.get("webhooks")
+
+    filter_store, webhook_lookup_map = populate_webhooks(webhooks)
+    server.filter_store = filter_store
+    server.webhook_lookup_map = webhook_lookup_map
+    client = app.test_client()
+    resp = client.post("/webhook", json=test_payload_for_filters, headers={"Authorization": "Bearer test-token"})  # this sets flask.request for you
+    assert resp.status_code == 200
+
+    # Assertions
+    assert mock_post.call_count == 1
+
+    # Second call URL
+    second_url = "http://test_slack"
+    url2 = mock_post.call_args_list[0].args[0]
+    assert url2 == second_url
