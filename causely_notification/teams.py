@@ -112,12 +112,15 @@ def create_teams_values_block(payload):
     entity_link = entity.get("link")
     entity_text = f"[{entity_name}]({entity_link})" if entity_link else entity_name
 
+    # Extract cluster and namespace information from labels
+    labels = payload.get("labels", {})
+    cluster_name = labels.get("k8s.cluster.name", "Unknown Cluster")
+    namespace_name = labels.get("k8s.namespace.name", "Unknown Namespace")
+
     return {
         "type": "TextBlock",
         "text": (
-            f"**Severity:** {payload.get('severity')}\n"
-            f"**Affected Entity:** {entity_text}\n"
-            f"**Identified At:** {parse_iso_date(payload.get('timestamp'))}"
+            f"- **Affected Entity:** {entity_text}\r- **Cluster:** {cluster_name}\r- **Namespace:** {namespace_name}\r- **Severity:** {payload.get('severity')}\r- **Identified At:** {parse_iso_date(payload.get('timestamp'))}"
         ),
         "wrap": True
     }
@@ -129,7 +132,8 @@ def create_teams_detected_payload(payload):
             "type": "TextBlock",
             "text": f"⚠️ **Root Cause Identified: {payload.get('name')}**",
             "weight": "bolder",
-            "size": "large"
+            "size": "large",
+            "wrap": True
         },
         {
             "type": "TextBlock",
