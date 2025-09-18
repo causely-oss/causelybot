@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -52,6 +53,10 @@ def webhook_routing():
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.split(" ")[1] == EXPECTED_TOKEN:
         payload = request.json
+        
+        # Log the received payload for debugging
+        print("RECEIVED PAYLOAD:", json.dumps(payload), file=sys.stderr)
+        
         # Check if the payload passes the filter
         matching_webhooks = filter_store.filter_payload(payload)
 
