@@ -114,8 +114,8 @@ def create_teams_values_block(payload):
 
     # Extract cluster and namespace information from labels
     labels = payload.get("labels", {})
-    cluster_name = labels.get("k8s.cluster.name", "Unknown Cluster")
-    namespace_name = labels.get("k8s.namespace.name", "Unknown Namespace")
+    cluster_name = labels.get("causely.ai/cluster", "Unknown Cluster")
+    namespace_name = labels.get("causely.ai/namespace", "Unknown Namespace")
 
     return {
         "type": "TextBlock",
@@ -272,7 +272,7 @@ def forward_to_teams(payload, teams_webhook_url):
     else:
         teams_data = create_teams_cleared_payload(payload)
 
-    print(f"Teams message data: {json.dumps(teams_data, indent=2)}", file=sys.stderr)
+    print(f"Teams message data: {json.dumps(teams_data)}", file=sys.stderr)
 
     headers = {
         'Content-Type': 'application/json'
