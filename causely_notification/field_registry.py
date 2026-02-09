@@ -107,6 +107,12 @@ def get_map_value(obj, field, key):
         map_value = obj[field]
     else:
         map_value = get_nested_value(obj, field)
+
+    # Payload may have the key as a flat dotted string (e.g. "labels.k8s.cluster.name")
+    if map_value is None:
+        flat_key = f"{field}.{key}"
+        return obj.get(flat_key) if flat_key in obj else None
+
     if key in map_value:
         return map_value[key]
     else:
