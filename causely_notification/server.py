@@ -101,7 +101,7 @@ def webhook_routing():
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue
 
-            if response.status_code in [200, 202]:
+            if response.status_code in [200, 201, 202]:
                 successful_forwards.append(name)
             else:
                 print(f"Failed to forward to {name}: {response.content}", file=sys.stderr)
