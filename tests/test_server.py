@@ -376,3 +376,57 @@ def test_webhook_slack_label_filter(mock_post):
     assert resp.status_code == 200
     assert mock_post.call_count == 1
     assert mock_post.call_args_list[0].args[0] == "http://test_slack"
+
+
+def test_webhook_unauthorized_no_header():
+    """POST without Authorization returns 401."""
+    _setup_webhooks(_one_webhook_config("slack", filters_enabled=False))
+    client = app.test_client()
+    resp = client.post("/webhook", json=test_payload)
+    assert resp.status_code == 401
+    assert b"Unauthorized" in resp.data
+
+
+def test_webhook_unauthorized_wrong_token():
+    """POST with wrong Bearer token returns 401."""
+    _setup_webhooks(_one_webhook_config("slack", filters_enabled=False))
+    client = app.test_client()
+    resp = client.post(
+        "/webhook",
+        json=test_payload,
+        headers={"Authorization": "Bearer wrong-token"},
+    )
+    assert resp.status_code == 401
+
+
+@patch("requests.post")
+def test_webhook_no_matching_webhooks(mock_post):
+    """When no webhooks match the payload, returns 200 and does not call any backend."""
+    yaml_str = _one_webhook_config(
+        "slack",
+        filters_enabled=True,
+        filter_values=[{"field": "severity", "operator": "in", "value": ["Critical"]}],
+    )
+    _setup_webhooks(yaml_str)
+    client = app.test_client()
+    resp = client.post(
+        "/webhook", json=test_payload, headers={"Authorization": "Bearer test-token"}
+    )
+    assert resp.status_code == 200
+    assert b"No matching webhooks" in resp.data
+    assert mock_post.call_count == 0
+
+
+@patch("requests.post")
+def test_webhook_all_forwards_fail_returns_500(mock_post):
+    """When all forwards fail (e.g. 404), returns 500."""
+    mock_post.return_value = Mock(status_code=404, content=b"Not Found")
+    yaml_str = _one_webhook_config("slack", filters_enabled=False)
+    _setup_webhooks(yaml_str)
+    client = app.test_client()
+    resp = client.post(
+        "/webhook", json=test_payload, headers={"Authorization": "Bearer test-token"}
+    )
+    assert resp.status_code == 500
+    assert b"Failed to forward" in resp.data
+    assert mock_post.call_count == 1

@@ -20,17 +20,18 @@ See the sections below for detailed configuration and deployment instructions.
 ```shell
 git clone https://github.com/causely-oss/causelybot.git
 ```
-CauselyBot Docker images are pre-built and published to `us-docker.pkg.dev/public-causely/public/bot:latest`. See Appendix section for building image locally. 
 
+CauselyBot Docker images are pre-built and published to `us-docker.pkg.dev/public-causely/public/bot:latest`. See Appendix section for building image locally.
 
 ### Configure Webhook
-Create a `causelybot-values.yaml` file with your configuration. Use the example below and update the following fields:
-  - `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml` 
-  - `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
-  - `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`
-  - `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
-  - `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
 
+Create a `causelybot-values.yaml` file with your configuration. Use the example below and update the following fields:
+
+- `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml`
+- `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
+- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`
+- `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
+- `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
 
 ```yaml
 auth:
@@ -50,12 +51,12 @@ webhooks:
 ```
 
 ## 2. Deploy Causelybot
+
 Install via Helm using the `causelybot-values.yaml` file:
 
 ```shell
 helm upgrade --install causelybot ./causelybot/helm/causelybot --namespace causelybot --values causelybot-values.yaml
 ```
-
 
 ## 3. Configure Causely
 
@@ -73,26 +74,28 @@ notifications:
 ```
 
 **Important Notes:**
+
 - Replace `<CAUSELYBOT_FQDN/IP>` with the actual FQDN or IP address where CauselyBot is deployed. If deployed within the same cluster in the causelybot namespace, use:<br>
   `causelybot.causelybot.svc.cluster.local.`
 - Replace `<YOUR_CAUSELYBOT_TOKEN>` with the same token you configured in CauselyBot (see configuration section above)
 - See [Causely's Documentation](https://docs.causely.ai/installation/customize/) for additional details on `causely-values.yaml` usage
 
 Apply the changes to Causely:
+
 ```bash
 helm upgrade --install causely --create-namespace oci://us-docker.pkg.dev/public-causely/public/causely --version <version> --namespace=causely --values </path/to/causely-values.yaml>
 ```
 
-
 ## 4. Test CauselyBot
+
 1. To confirm your webhook has been configured correctly, in Causely, navigate to Gear Icon > Integrations > [Webhooks](https://portal.causely.app/integrations?tab=webhooks)
-2. Click "Send Test Notification" to trigger a test payload. 
+2. Click "Send Test Notification" to trigger a test payload.
 3. If the configuration is working, a test payload will be sent from the Executor to CauselyBot to your wehbook endpoint(s). If you do not receive the test notification, you can check the logs of the executor and causelybot for more details:
    - `kubectl logs -f deploy/executor -n causely`
    - `kubectl logs -f deploy/causelybot -n causelybot`
 
-
 ## Appendix
+
 ### Notification Payload
 
 Below is an example of the raw payload sent from the Executor to CauselyBot:
@@ -268,11 +271,11 @@ webhooks:
       enabled: false # No filtering - receives all notifications
 ```
 
-
 ### Docker Image
 
 CauselyBot Docker images are pre-built and published to:
-```
+
+```text
 us-docker.pkg.dev/public-causely/public/bot:latest
 ```
 
