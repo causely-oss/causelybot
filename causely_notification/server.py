@@ -28,10 +28,11 @@ from flask import request
 from typing import Dict, Any
 
 from causely_notification.filter import WebhookFilterStore
+from causely_notification.github import forward_to_github
 from causely_notification.jira import forward_to_jira
+from causely_notification.opsgenie import forward_to_opsgenie
 from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
-from causely_notification.opsgenie import forward_to_opsgenie
 
 app = Flask(__name__)
 
@@ -88,6 +89,7 @@ def webhook_routing():
             hook_url = webhook_lookup_map[name]['url']
             hook_type = webhook_lookup_map[name]['hook_type']
             hook_token = webhook_lookup_map[name]['token']
+            hook_assignee = webhook_lookup_map[name].get('assignee')
             match hook_type.lower():  # case-insensitive
                 case "teams":
                     response = forward_to_teams(payload, hook_url)
@@ -97,11 +99,13 @@ def webhook_routing():
                     response = forward_to_opsgenie(payload, hook_url, hook_token)
                 case "jira":
                     response = forward_to_jira(payload, hook_url, hook_token)
+                case "github":
+                    response = forward_to_github(payload, hook_url, hook_token, assignee=hook_assignee)
                 case _:
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue
 
-            if response.status_code in [200, 202]:
+            if response.status_code in [200, 201, 202]:
                 successful_forwards.append(name)
             else:
                 print(f"Failed to forward to {name}: {response.content}", file=sys.stderr)
@@ -157,11 +161,16 @@ def populate_webhooks(webhooks):
             url_env_var
             }' for webhook '{webhook_name}'")
 
-        # Store the webhook URL and token in the lookup map
+        # Optional assignee (used by GitHub)
+        assignee_env_var = f"ASSIGNEE_{normalized_name}"
+        assignee = os.getenv(assignee_env_var)
+
+        # Store the webhook URL, token, hook type, and optional assignee in the lookup map
         webhook_lookup_map[webhook_name] = {
             'url': url,
             'token': token,
             'hook_type': webhook_type,
+            'assignee': assignee,
         }
 
         # Extract and add filters for the webhook (if enabled)

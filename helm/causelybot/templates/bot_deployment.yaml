@@ -59,6 +59,10 @@ spec:
             secretKeyRef:
               name: causelybot-secret-{{ .name | lower | replace " " "-" }}
               key: token
+        {{- if .assignee }}
+        - name: ASSIGNEE_{{ .name | upper | replace " " "_" }}
+          value: {{ .assignee | quote }}
+        {{- end }}
         {{- end }}
         {{- end }}
         
