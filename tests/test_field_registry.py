@@ -75,6 +75,19 @@ class TestFieldRegistry(unittest.TestCase):
             ),
         )
 
+    def test_get_map_value_key_not_in_map(self):
+        # labels exists but requested key (k8s.cluster.name) is not in it -> None
+        payload = {
+            "entity": {"type": "host"},
+            "labels": {"other_key": "other_value"},
+            "name": "test-entity",
+        }
+        self.assertIsNone(
+            self.field_registry.get_field_value(
+                payload, "labels.k8s.cluster.name",
+            ),
+        )
+
     def test_get_computed_field_value(self):
         # Testing a computed field
         payload = {
