@@ -152,16 +152,17 @@ def populate_webhooks(webhooks):
         if not webhook_type:
             raise ValueError("Webhook type is required in the configuration.")
 
-        # Get the url and token from env vars (if set) or fall back to config file.
-        # In kubernetes, secrets should be used for env vars.
+        # Get the url and token and env vars.  In kubernetes this should be a
+        # secret.  In docker, create env vars
         url_env_var = f"URL_{normalized_name}"
         token_env_var = f"TOKEN_{normalized_name}"
-        url = os.getenv(url_env_var) or webhook.get("url")
-        token = os.getenv(token_env_var) or webhook.get("token")
+        url = os.getenv(url_env_var)
+        token = os.getenv(token_env_var)
 
         if not url:
-            raise ValueError(f"Missing URL for webhook '{webhook_name}'. "
-                           f"Provide either environment variable '{url_env_var}' or 'url' in config file.")
+            raise ValueError(f"Missing environment variable '{
+            url_env_var
+            }' for webhook '{webhook_name}'")
 
         # Optional assignee (used by GitHub)
         assignee_env_var = f"ASSIGNEE_{normalized_name}"

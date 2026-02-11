@@ -311,6 +311,8 @@ To run the container locally:
 ```shell
 docker run -p 5000:5000 \
   -e AUTH_TOKEN=test-token-123 \
+  -e URL_DEBUG="https://debug.example.com/webhook" \
+  -e TOKEN_DEBUG="debug-token-456" \
   -v $(pwd)/config.sample.yaml:/etc/causelybot/config.yaml \
   us-docker.pkg.dev/public-causely/public/bot
 ```
