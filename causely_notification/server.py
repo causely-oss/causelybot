@@ -33,9 +33,10 @@ from causely_notification.jira import forward_to_jira
 from causely_notification.opsgenie import forward_to_opsgenie
 from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
+from causely_notification.opsgenie import forward_to_opsgenie
+from causely_notification.debug import forward_to_debug
 
 app = Flask(__name__)
-
 
 def load_config():
     with open("/etc/causelybot/config.yaml", 'r') as stream:
@@ -101,6 +102,8 @@ def webhook_routing():
                     response = forward_to_jira(payload, hook_url, hook_token)
                 case "github":
                     response = forward_to_github(payload, hook_url, hook_token, assignee=hook_assignee)
+                case "debug":
+                    response = forward_to_debug(payload, hook_url, hook_token)
                 case _:
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue
@@ -149,17 +152,16 @@ def populate_webhooks(webhooks):
         if not webhook_type:
             raise ValueError("Webhook type is required in the configuration.")
 
-        # Get the url and token and env vars.  In kubernetes this should be a
-        # secret.  In docker, create env vars
+        # Get the url and token from env vars (if set) or fall back to config file.
+        # In kubernetes, secrets should be used for env vars.
         url_env_var = f"URL_{normalized_name}"
         token_env_var = f"TOKEN_{normalized_name}"
-        url = os.getenv(url_env_var)
-        token = os.getenv(token_env_var)
+        url = os.getenv(url_env_var) or webhook.get("url")
+        token = os.getenv(token_env_var) or webhook.get("token")
 
         if not url:
-            raise ValueError(f"Missing environment variable '{
-            url_env_var
-            }' for webhook '{webhook_name}'")
+            raise ValueError(f"Missing URL for webhook '{webhook_name}'. "
+                           f"Provide either environment variable '{url_env_var}' or 'url' in config file.")
 
         # Optional assignee (used by GitHub)
         assignee_env_var = f"ASSIGNEE_{normalized_name}"

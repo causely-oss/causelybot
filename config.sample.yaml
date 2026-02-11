@@ -1,0 +1,10 @@
+auth:
+  token: "test-token-123"
+
+webhooks:
+  - name: "debug-webhook"
+    hook_type: "debug"
+    url: "https://debug.example.com/webhook"
+    token: "debug-token-456"
+    filters:
+      enabled: false
