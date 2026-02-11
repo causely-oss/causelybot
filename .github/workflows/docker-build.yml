@@ -40,10 +40,10 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+          load: true
           tags: causelybot:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: Verify image was built
-        run: |
-          docker images | grep causelybot
+      - name: Test Docker image
+        run: ./scripts/test-docker.sh causelybot:test
