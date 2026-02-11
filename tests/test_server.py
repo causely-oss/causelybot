@@ -4,7 +4,7 @@ import textwrap
 
 import pytest
 import yaml
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
 
 # Set env vars before importing server (server uses them for URL lookup)
 os.environ["AUTH_TOKEN"] = "test-token"
@@ -14,6 +14,7 @@ os.environ["URL_SLACK-TEST"] = "http://test_slack"
 os.environ["URL_TEAMS-TEST"] = "http://test_teams"
 os.environ["URL_JIRA-TEST"] = "http://test_jira"
 os.environ["URL_OPSGENIE-TEST"] = "http://test_opsgenie"
+os.environ["URL_GITHUB-TEST"] = "test_owner/test_repo"
 
 # Multi-webhook config (existing slack-only) for filter/scenario tests
 os.environ["URL_SLACK-SEVERITY"] = "http://test_slack"
@@ -23,7 +24,7 @@ os.environ["URL_SLACK-ALL-ALERTS"] = "http://test_slack"
 from causely_notification import server
 from causely_notification.server import app, populate_webhooks
 
-BACKENDS = ["slack", "teams", "jira", "opsgenie"]
+BACKENDS = ["slack", "teams", "jira", "opsgenie", "github"]
 
 # Expected success status per backend (server accepts 200, 201, 202)
 BACKEND_SUCCESS_STATUS = {
@@ -31,6 +32,7 @@ BACKEND_SUCCESS_STATUS = {
     "teams": 200,
     "jira": 201,
     "opsgenie": 202,
+    "github": 201,
 }
 
 def _expected_url(hook_type: str) -> str:
@@ -41,6 +43,8 @@ def _expected_url(hook_type: str) -> str:
         base = f"http://test_{hook_type}"
     if hook_type == "jira":
         return f"{base}/rest/api/2/issue"
+    if hook_type == "github":
+        return f"https://api.github.com/repos/{base}/issues"
     return base
 
 
@@ -53,7 +57,7 @@ def _one_webhook_config(hook_type: str, filters_enabled: bool = False, filter_va
         f'    hook_type: "{hook_type}"',
         f'    url: "https://example.com/{hook_type}"',
     ]
-    if hook_type in ("slack", "jira", "opsgenie"):
+    if hook_type in ("slack", "jira", "opsgenie", "github"):
         lines.append('    token: "fake-token"')
     if filters_enabled and filter_values:
         lines.append("    filters:")
@@ -251,24 +255,55 @@ def _setup_webhooks(yaml_str: str):
     server.webhook_lookup_map = webhook_lookup_map
 
 
+@patch("requests.request")
 @patch("requests.post")
 @pytest.mark.parametrize("hook_type", BACKENDS)
-def test_webhook_posts_expected_payload(mock_post, hook_type):
+def test_webhook_posts_expected_payload(mock_post, mock_request, hook_type):
     """POST with ProblemDetected forwards to the configured backend (any type)."""
+    if hook_type == "github":
+        # github_request returns resp.json() if resp.content else None — need truthy content
+        mock_request.side_effect = [
+            MagicMock(ok=True, status_code=200, content=b"[]", json=lambda: []),
+            MagicMock(
+                ok=True,
+                status_code=201,
+                content=b" ",
+                json=lambda: {"number": 1, "html_url": "https://github.com/test_owner/test_repo/issues/1"},
+            ),
+        ]
+    else:
+        mock_request.return_value = MagicMock(ok=True, status_code=200)
     mock_post.return_value = Mock(status_code=BACKEND_SUCCESS_STATUS[hook_type], content=b"ok")
     yaml_str = _one_webhook_config(hook_type, filters_enabled=False)
     _setup_webhooks(yaml_str)
     client = app.test_client()
     resp = client.post("/webhook", json=test_payload, headers={"Authorization": "Bearer test-token"})
     assert resp.status_code == 200
-    assert mock_post.call_count == 1
-    assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
+    if hook_type == "github":
+        assert mock_request.call_count >= 2
+        assert mock_request.call_args_list[1].args[1] == _expected_url(hook_type)
+    else:
+        assert mock_post.call_count == 1
+        assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
 
 
+@patch("requests.request")
 @patch("requests.post")
 @pytest.mark.parametrize("hook_type", BACKENDS)
-def test_webhook_posts_expected_payload2(mock_post, hook_type):
+def test_webhook_posts_expected_payload2(mock_post, mock_request, hook_type):
     """ProblemUpdated (severity went up): only webhooks that newly match are notified."""
+    if hook_type == "github":
+        mock_request.side_effect = [
+            MagicMock(ok=True, status_code=200, content=b"[]", json=lambda: []),
+            MagicMock(
+                ok=True,
+                status_code=201,
+                content=b" ",
+                json=lambda: {"number": 1, "html_url": "https://github.com/test_owner/test_repo/issues/1"},
+            ),
+        ]
+    else:
+        mock_request.return_value = MagicMock(ok=True, status_code=200)
     mock_post.return_value = Mock(status_code=BACKEND_SUCCESS_STATUS[hook_type], content=b"ok")
     # Filter: severity in [High, Critical]. Old payload has Low, new has High -> only new matches -> 1 forward
     yaml_str = _one_webhook_config(
@@ -282,14 +317,31 @@ def test_webhook_posts_expected_payload2(mock_post, hook_type):
         "/webhook", json=test_payload_update, headers={"Authorization": "Bearer test-token"}
     )
     assert resp.status_code == 200
-    assert mock_post.call_count == 1
-    assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
+    if hook_type == "github":
+        assert mock_request.call_count >= 2
+        assert mock_request.call_args_list[1].args[1] == _expected_url(hook_type)
+    else:
+        assert mock_post.call_count == 1
+        assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
 
 
+@patch("requests.request")
 @patch("requests.post")
 @pytest.mark.parametrize("hook_type", BACKENDS)
-def test_webhook_posts_expected_payload3(mock_post, hook_type):
+def test_webhook_posts_expected_payload3(mock_post, mock_request, hook_type):
     """ProblemUpdated (severity went down): only webhooks that newly match are notified."""
+    if hook_type == "github":
+        mock_request.side_effect = [
+            MagicMock(ok=True, status_code=200, content=b"[]", json=lambda: []),
+            MagicMock(
+                ok=True,
+                status_code=201,
+                content=b" ",
+                json=lambda: {"number": 1, "html_url": "https://github.com/test_owner/test_repo/issues/1"},
+            ),
+        ]
+    else:
+        mock_request.return_value = MagicMock(ok=True, status_code=200)
     mock_post.return_value = Mock(status_code=BACKEND_SUCCESS_STATUS[hook_type], content=b"ok")
     # Filter: severity in [Low]. Old payload has High, new has Low -> only new matches -> 1 forward
     yaml_str = _one_webhook_config(
@@ -303,14 +355,20 @@ def test_webhook_posts_expected_payload3(mock_post, hook_type):
         "/webhook", json=test_payload_update_lower, headers={"Authorization": "Bearer test-token"}
     )
     assert resp.status_code == 200
-    assert mock_post.call_count == 1
-    assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
+    if hook_type == "github":
+        assert mock_request.call_count >= 2
+        assert mock_request.call_args_list[1].args[1] == _expected_url(hook_type)
+    else:
+        assert mock_post.call_count == 1
+        assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
 
 
+@patch("requests.request")
 @patch("requests.post")
 @pytest.mark.parametrize("hook_type", BACKENDS)
-def test_webhook_posts_expected_payload4(mock_post, hook_type):
+def test_webhook_posts_expected_payload4(mock_post, mock_request, hook_type):
     """ProblemUpdated (severity unchanged) does not forward."""
+    mock_request.return_value = MagicMock(ok=True, status_code=200)
     mock_post.return_value = Mock(status_code=BACKEND_SUCCESS_STATUS[hook_type], content=b"ok")
     yaml_str = _one_webhook_config(hook_type, filters_enabled=False)
     _setup_webhooks(yaml_str)
@@ -319,13 +377,22 @@ def test_webhook_posts_expected_payload4(mock_post, hook_type):
         "/webhook", json=test_payload_update_same, headers={"Authorization": "Bearer test-token"}
     )
     assert resp.status_code == 200
-    assert mock_post.call_count == 0
+    if hook_type == "github":
+        assert mock_request.call_count == 0
+    else:
+        assert mock_post.call_count == 0
 
 
+@patch("requests.request")
 @patch("requests.post")
 @pytest.mark.parametrize("hook_type", BACKENDS)
-def test_webhook_posts_expected_payload_filtered(mock_post, hook_type):
+def test_webhook_posts_expected_payload_filtered(mock_post, mock_request, hook_type):
     """Payload matching label filter is forwarded to the configured backend."""
+    # test_payload_for_filters is ProblemCleared; GitHub ignores it (no API calls)
+    if hook_type == "github":
+        mock_request.return_value = MagicMock(ok=True, status_code=200, json=lambda: [])
+    else:
+        mock_request.return_value = MagicMock(ok=True, status_code=200)
     mock_post.return_value = Mock(status_code=BACKEND_SUCCESS_STATUS[hook_type], content=b"ok")
     yaml_str = _one_webhook_config(
         hook_type,
@@ -344,8 +411,12 @@ def test_webhook_posts_expected_payload_filtered(mock_post, hook_type):
         "/webhook", json=test_payload_for_filters, headers={"Authorization": "Bearer test-token"}
     )
     assert resp.status_code == 200
-    assert mock_post.call_count == 1
-    assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
+    if hook_type == "github":
+        # GitHub returns 200 for ProblemCleared without calling create; no list issues either
+        assert mock_request.call_count == 0
+    else:
+        assert mock_post.call_count == 1
+        assert mock_post.call_args_list[0].args[0] == _expected_url(hook_type)
 
 
 # Multi-webhook (Slack-only) scenario tests: filter matching with two webhooks

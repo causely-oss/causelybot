@@ -26,12 +26,22 @@ auth:
 
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie]
-    url: "<YOUR_WEBHOOK_URL>" # Required
-    token: "<YOUR_WEBHOOK_TOKEN>" # Optional
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, github]
+    url: "<YOUR_WEBHOOK_URL>" # Required (for github use "owner/repo")
+    token: "<YOUR_WEBHOOK_TOKEN>" # Optional (required for github: PAT with repo + issues scope)
+    # assignee: "" # Optional; for GitHub use e.g. "copilot-swe-agent" to assign issues
     filters: # Optional
       enabled: true
       values:
         - field: "severity"
           operator: "in"
           value: ["High", "Critical"]
+  # Example GitHub webhook: url = "owner/repo", token = GitHub PAT, optional assignee
+  # - name: "github"
+  #   hook_type: "github"
+  #   url: "myorg/my-repo"
+  #   token: "" # GitHub token with repo + issues scope
+  #   assignee: "copilot-swe-agent" # optional
+  #   filters:
+  #     enabled: true
+  #     values: []

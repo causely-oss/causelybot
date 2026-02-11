@@ -49,6 +49,27 @@ webhooks:
           operator: "in"
           value: ["High", "Critical"]
 ```
+or
+```yaml
+notifications:
+  webhook:
+    url: "http://causelybot.foo:5000/webhook/github"
+    token: "your-secret-token"
+    enabled: true
+```
+
+For GitHub, causelybot expects a webhook where `url` is the repo as `owner/repo` and `token` is a GitHub token (repo + issues scope). Optional: `assignee` (e.g. `copilot-swe-agent`).
+
+```yaml
+webhooks:
+  - name: "github"
+    url: "owner/repo"   # required
+    token: ""            # required; GitHub PAT or app token
+    assignee: ""        # optional
+    filters:
+      enabled: true
+      values: []
+```
 
 ## 2. Deploy Causelybot
 
