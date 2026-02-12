@@ -33,9 +33,10 @@ from causely_notification.jira import forward_to_jira
 from causely_notification.opsgenie import forward_to_opsgenie
 from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
+from causely_notification.opsgenie import forward_to_opsgenie
+from causely_notification.debug import forward_to_debug
 
 app = Flask(__name__)
-
 
 def load_config():
     with open("/etc/causelybot/config.yaml", 'r') as stream:
@@ -101,6 +102,8 @@ def webhook_routing():
                     response = forward_to_jira(payload, hook_url, hook_token)
                 case "github":
                     response = forward_to_github(payload, hook_url, hook_token, assignee=hook_assignee)
+                case "debug":
+                    response = forward_to_debug(payload, hook_url, hook_token)
                 case _:
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue

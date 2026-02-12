@@ -29,7 +29,7 @@ Create a `causelybot-values.yaml` file with your configuration. Use the example 
 
 - `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml`
 - `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
-- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`
+- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`, `debug`
 - `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
 - `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
 
@@ -39,7 +39,7 @@ auth:
 
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie]
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, debug]
     url: "<YOUR_WEBHOOK_URL>" # Required
     token: "<YOUR_WEBHOOK_TOKEN>" # Optional
     filters: # Optional - see Filtering Notifications
@@ -303,5 +303,37 @@ us-docker.pkg.dev/public-causely/public/bot:latest
 If you need to build the image locally for development or custom modifications:
 
 ```shell
-docker buildx build -t us-docker.pkg.dev/public-causely/public/bot --platform linux/amd64,linux/arm64 --push .
+docker buildx build -t us-docker.pkg.dev/public-causely/public/bot --platform linux/amd64,linux/arm64 .
 ```
+
+To run the container locally:
+
+```shell
+docker run -p 5000:5000 \
+  -e AUTH_TOKEN=test-token-123 \
+  -e URL_DEBUG="https://debug.example.com/webhook" \
+  -e TOKEN_DEBUG="debug-token-456" \
+  -v $(pwd)/config.sample.yaml:/etc/causelybot/config.yaml \
+  us-docker.pkg.dev/public-causely/public/bot
+```
+
+The webhook will be available at `http://localhost:5000/webhook`. You can send a test notification to the local webhook:
+
+```shell
+curl -X POST http://localhost:5000/webhook \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test-token-123" \
+  -d '{
+    "name": "Test Problem",
+    "type": "ProblemDetected",
+    "entity": {
+      "id": "test-123",
+      "name": "test-service",
+      "type": "KubernetesService"
+    },
+    "severity": "High",
+    "timestamp": "2026-02-11T12:00:00Z"
+  }'
+```
+
+Check the container logs to see the debug output with the formatted notification details.

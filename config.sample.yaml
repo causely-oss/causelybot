@@ -1,0 +1,5 @@
+webhooks:
+  - name: "debug"
+    hook_type: "debug"
+    filters:
+      enabled: false
