@@ -1,4 +1,4 @@
-bitarray==3.0.0
+bitarray==3.8.0
 blinker==1.9.0
 certifi==2026.1.4
 charset-normalizer==3.3.2
