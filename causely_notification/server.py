@@ -35,6 +35,7 @@ from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
 from causely_notification.opsgenie import forward_to_opsgenie
 from causely_notification.debug import forward_to_debug
+from causely_notification.generic import forward_to_generic
 
 app = Flask(__name__)
 
@@ -104,6 +105,8 @@ def webhook_routing():
                     response = forward_to_github(payload, hook_url, hook_token, assignee=hook_assignee)
                 case "debug":
                     response = forward_to_debug(payload, hook_url, hook_token)
+                case "generic":
+                    response = forward_to_generic(payload, hook_url, hook_token)
                 case _:
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue
