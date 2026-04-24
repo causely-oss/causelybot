@@ -16,26 +16,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import sys
+from typing import Any, Dict
+
+import requests
 
 
-def parse_iso_date(iso_date_str):
-    """
-    Parse an ISO 8601 date string and return a human-readable format.
-
-    Args:
-        iso_date_str (str): The ISO 8601 date string.
-
-    Returns:
-        str: A human-readable date string.
-    """
-    if not iso_date_str:
-        return "Unknown"
-    try:
-        # Parse the ISO 8601 date string
-        parsed_date = datetime.strptime(iso_date_str[:19], "%Y-%m-%dT%H:%M:%S")
-        # Convert to human-readable format
-        readable_date = parsed_date.strftime("%B %d, %Y at %I:%M:%S %p")
-        return readable_date
-    except ValueError:
-        return iso_date_str
+def forward_to_generic(payload: Dict[str, Any], url: str, token: str = None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code not in [200, 201, 202]:
+        print(f"Error posting to generic webhook: {response.status_code}, {response.text}", file=sys.stderr)
+    else:
+        print("Payload successfully forwarded to generic webhook.", file=sys.stderr)
+    return response
