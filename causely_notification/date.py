@@ -29,7 +29,7 @@ def parse_iso_date(iso_date_str):
     Returns:
         str: A human-readable date string.
     """
-    if not iso_date_str:
+    if iso_date_str is None:
         return "Unknown"
     try:
         # Parse the ISO 8601 date string
