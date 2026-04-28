@@ -1,6 +1,6 @@
 # CauselyBot
 
-CauselyBot is a webhook service designed to receive and authenticate incoming payloads, process them, and forward the relevant information to external systems such as Slack, Teams, Jira, and OpsGenie. This server-side application validates bearer tokens included in the payload, ensuring secure communication. Once authenticated, the bot forwards the payload to specified channels using pre-configured webhook URLs, enabling streamlined notifications and updates.
+CauselyBot is an open-source webhook service that allows users to send notifications to a variety of platforms. While Causely natively supports a number of notification endpoints (Alertmanager, Slack, Teams, etc), CauselyBot helps connect Causely's insights to **any arbitrary endpoint**.  This server-side application validates bearer tokens included in the payload, then forwards notifications to the endpoints you configure.
 
 ## Overview
 
@@ -29,7 +29,7 @@ Create a `causelybot-values.yaml` file with your configuration. Use the example 
 
 - `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml`
 - `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
-- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`, `debug`
+- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `generic`, `slack`, `teams`, `jira`, `opsgenie`, `debug`
 - `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
 - `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
 
@@ -39,7 +39,7 @@ auth:
 
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, debug]
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [generic, slack, teams, jira, opsgenie, debug]
     url: "<YOUR_WEBHOOK_URL>" # Required
     token: "<YOUR_WEBHOOK_TOKEN>" # Optional
     filters: # Optional - see Filtering Notifications
@@ -49,14 +49,8 @@ webhooks:
           operator: "in"
           value: ["High", "Critical"]
 ```
-or
-```yaml
-notifications:
-  webhook:
-    url: "http://causelybot.foo:5000/webhook/github"
-    token: "your-secret-token"
-    enabled: true
-```
+
+> **Note:** Filters can also be configured in the Causely notification Secret (see Step 3), which lets you control which notifications are forwarded without modifying CauselyBot's own config.
 
 For GitHub, causelybot expects a webhook where `url` is the repo as `owner/repo` and `token` is a GitHub token (repo + issues scope). Optional: `assignee` (e.g. `copilot-swe-agent`).
 
@@ -81,45 +75,66 @@ helm upgrade --install causelybot ./causelybot/helm/causelybot --namespace cause
 
 ## 3. Configure Causely
 
-To configure Causely to send notifications to CauselyBot, you must enable the `executor` and specify the CauselyBot endpoint. Add the following entries to your `causely-values.yaml` file:
+To configure Causely to send notifications to CauselyBot, first enable mediator notifications in your `causely-values.yaml`:
 
 ```yaml
-executor:
-  enabled: true
-
-notifications:
-  webhook:
-    url: "http://<CAUSELYBOT_FQDN/IP>:5000/webhook"
-    token: "<YOUR_CAUSELYBOT_TOKEN>"
+mediator:
+  notifications:
     enabled: true
 ```
 
-**Important Notes:**
-
-- Replace `<CAUSELYBOT_FQDN/IP>` with the actual FQDN or IP address where CauselyBot is deployed. If deployed within the same cluster in the causelybot namespace, use:<br>
-  `causelybot.causelybot.svc.cluster.local.`
-- Replace `<YOUR_CAUSELYBOT_TOKEN>` with the same token you configured in CauselyBot (see configuration section above)
-- See [Causely's Documentation](https://docs.causely.ai/installation/customize/) for additional details on `causely-values.yaml` usage
-
-Apply the changes to Causely:
+Apply the change:
 
 ```bash
 helm upgrade --install causely --create-namespace oci://us-docker.pkg.dev/public-causely/public/causely --version <version> --namespace=causely --values </path/to/causely-values.yaml>
 ```
 
+Then create a Kubernetes Secret in the `causely` namespace that points Causely at CauselyBot (use `stringData` so values are plain text; if you use `data`, values must be base64-encoded):
+
+```yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: causelybot-notification-config
+  namespace: causely
+  labels:
+    causely.ai/notif-config: CauselyBot   # Required
+stringData:
+  notif_config_name: causelybot-webhook
+  notif_config_global: "false"
+  notif_config_type: CauselyBot
+  notif_config_url: http://causelybot.causelybot.svc.cluster.local.:5000/webhook
+  notif_config_token: "<YOUR_CAUSELYBOT_TOKEN>"
+  notif_config_filters: "[]"
+  notif_config_filters_enabled: "true"
+```
+
+**Important Notes:**
+
+- `notif_config_token` must match the `auth.token` you set in CauselyBot's configuration. Causely sends it as `Authorization: Bearer <token>` so CauselyBot can authenticate the request.
+- `notif_config_url`: if CauselyBot is deployed in a different cluster or namespace, replace the in-cluster URL with the actual FQDN or IP of your CauselyBot instance.
+- `notif_config_filters`: a JSON array of filter rules. When empty (`"[]"`) or `notif_config_filters_enabled` is `"false"`, all notifications pass through. See [Filtering Notifications](#filtering-notifications) for filter syntax.
+- See [Causely's Documentation](https://docs.causely.ai/installation/customize/) for additional details on `causely-values.yaml` usage.
+
+Apply the Secret:
+
+```bash
+kubectl apply -f causelybot-notification-config.yaml
+```
+
 ## 4. Test CauselyBot
 
-1. To confirm your webhook has been configured correctly, in Causely, navigate to Gear Icon > Integrations > [Webhooks](https://portal.causely.app/integrations?tab=webhooks)
+1. To confirm your webhook has been configured correctly, in Causely, navigate to Settings > [Notifications](https://portal.causely.app/settings?tab=notifications)
 2. Click "Send Test Notification" to trigger a test payload.
-3. If the configuration is working, a test payload will be sent from the Executor to CauselyBot to your wehbook endpoint(s). If you do not receive the test notification, you can check the logs of the executor and causelybot for more details:
-   - `kubectl logs -f deploy/executor -n causely`
+3. If the configuration is working, a test payload will be sent from Causely to CauselyBot to your webhook endpoint(s). If you do not receive the test notification, you can check the CauselyBot logs for more details:
    - `kubectl logs -f deploy/causelybot -n causelybot`
 
 ## Appendix
 
 ### Notification Payload
 
-Below is an example of the raw payload sent from the Executor to CauselyBot:
+Below is an example of the raw payload sent from Causely to CauselyBot:
 
 ```json
 {
