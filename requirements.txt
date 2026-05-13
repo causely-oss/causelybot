@@ -14,6 +14,6 @@ packaging==26.2
 pluggy==1.6.0
 pytest==9.0.3
 PyYAML==6.0.3
-requests==2.34.0
+requests==2.34.1
 urllib3==2.7.0
 Werkzeug==3.1.8
