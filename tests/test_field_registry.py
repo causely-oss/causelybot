@@ -88,6 +88,20 @@ class TestFieldRegistry(unittest.TestCase):
             ),
         )
 
+    def test_get_map_value_namespace(self):
+        # labels exists but requested key (k8s.cluster.name) is not in it -> None
+        payload = {
+            "entity": {"type": "host"},
+            "labels": {"other_key": "other_value", "causely.ai/namespace": "namespace1"},
+            "name": "test-entity",
+        }
+        self.assertEqual(
+            self.field_registry.get_field_value(
+                payload, "labels.k8s.namespace.name",
+            ),
+                "namespace1",
+        )
+
     def test_get_computed_field_value(self):
         # Testing a computed field
         payload = {

@@ -23,7 +23,7 @@ FIELD_DEFINITIONS = {
     "severity": {"type": "direct", "path": "severity"},
     "entity.type": {"type": "direct", "path": "entity.type"},
     "labels.k8s.cluster.name": {"type": "map_path", "path": "labels", "map_key": "k8s.cluster.name"},
-    "labels.k8s.namespace.name": {"type": "map_path", "path": "labels", "map_key": "k8s.namespace.name"},
+    "labels.k8s.namespace.name": {"type": "map_path", "path": "labels", "map_key": "causely.ai/namespace"},
     "impactsSLO": {"type": "computed", "func": "compute_impact_slo"},
     "name": {"type": "direct", "path": "name"},
 }
