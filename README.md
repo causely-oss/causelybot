@@ -29,7 +29,7 @@ Create a `causelybot-values.yaml` file with your configuration. Use the example 
 
 - `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml`
 - `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
-- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `generic`, `slack`, `teams`, `jira`, `opsgenie`, `debug`
+- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `generic`, `slack`, `teams`, `jira`, `opsgenie`, `otlp`, `debug`
 - `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
 - `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
 
@@ -39,7 +39,7 @@ auth:
 
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [generic, slack, teams, jira, opsgenie, debug]
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [generic, slack, teams, jira, opsgenie, otlp, debug]
     url: "<YOUR_WEBHOOK_URL>" # Required
     token: "<YOUR_WEBHOOK_TOKEN>" # Optional
     filters: # Optional - see Filtering Notifications
@@ -63,6 +63,51 @@ webhooks:
     filters:
       enabled: true
       values: []
+```
+
+### OTLP Logs (Observability Dashboards)
+
+Send root cause notifications as OpenTelemetry log records to any OTLP/HTTP receiver (Grafana Cloud, Honeycomb, a self-hosted collector, etc.). Logs appear alongside existing application telemetry so teams can investigate in their current dashboards.
+
+- `hook_type`: `otlp`
+- `url`: OTLP HTTP **base URL** (CauselyBot appends `/v1/logs`), e.g. `https://otlp-gateway-prod-us-central-0.grafana.net/otlp`
+- `token`: Optional bearer token sent as `Authorization: Bearer <token>`
+
+Each notification produces one log record with:
+
+- A short human-readable **body** (e.g. `Root cause identified: ImagePullErrors on default/demo (High)`)
+- Structured **attributes** prefixed with `causely.*` for filtering (`causely.type`, `causely.name`, `causely.severity`, etc.)
+- The full Causely payload in `causely.payload`
+- **Resource attributes** from entity and Kubernetes labels (`service.name`, `k8s.namespace.name`, `k8s.cluster.name`, …) for correlation with existing telemetry
+
+`ProblemUpdated` is treated like `ProblemDetected`, matching Slack behavior.
+
+Example configuration alongside Slack:
+
+```yaml
+webhooks:
+  - name: "slack-alerts"
+    hook_type: "slack"
+    url: "https://hooks.slack.com/services/..."
+    token: "xoxb-..."
+    filters:
+      enabled: true
+      values:
+        - field: "severity"
+          operator: "in"
+          value: ["High", "Critical"]
+  - name: "grafana-logs"
+    hook_type: "otlp"
+    url: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp"
+    token: "<grafana-cloud-access-token>"
+    filters:
+      enabled: false
+```
+
+Example Loki query:
+
+```logql
+{service_name="istio-system/prometheus"} | json | causely_type="ProblemDetected"
 ```
 
 ## 2. Deploy Causelybot
