@@ -14,6 +14,7 @@ os.environ["URL_SLACK-TEST"] = "http://test_slack"
 os.environ["URL_TEAMS-TEST"] = "http://test_teams"
 os.environ["URL_JIRA-TEST"] = "http://test_jira"
 os.environ["URL_OPSGENIE-TEST"] = "http://test_opsgenie"
+os.environ["URL_OTLP-TEST"] = "http://test_otlp"
 os.environ["URL_GITHUB-TEST"] = "test_owner/test_repo"
 
 # Multi-webhook config (existing slack-only) for filter/scenario tests
@@ -24,7 +25,7 @@ os.environ["URL_SLACK-ALL-ALERTS"] = "http://test_slack"
 from causely_notification import server
 from causely_notification.server import app, populate_webhooks
 
-BACKENDS = ["slack", "teams", "jira", "opsgenie", "github"]
+BACKENDS = ["slack", "teams", "jira", "opsgenie", "github", "otlp"]
 
 # Expected success status per backend (server accepts 200, 201, 202)
 BACKEND_SUCCESS_STATUS = {
@@ -33,6 +34,7 @@ BACKEND_SUCCESS_STATUS = {
     "jira": 201,
     "opsgenie": 202,
     "github": 201,
+    "otlp": 200,
 }
 
 def _expected_url(hook_type: str) -> str:
@@ -45,6 +47,8 @@ def _expected_url(hook_type: str) -> str:
         return f"{base}/rest/api/2/issue"
     if hook_type == "github":
         return f"https://api.github.com/repos/{base}/issues"
+    if hook_type == "otlp":
+        return f"{base}/v1/logs"
     return base
 
 
@@ -57,7 +61,7 @@ def _one_webhook_config(hook_type: str, filters_enabled: bool = False, filter_va
         f'    hook_type: "{hook_type}"',
         f'    url: "https://example.com/{hook_type}"',
     ]
-    if hook_type in ("slack", "jira", "opsgenie", "github"):
+    if hook_type in ("slack", "jira", "opsgenie", "github", "otlp"):
         lines.append('    token: "fake-token"')
     if filters_enabled and filter_values:
         lines.append("    filters:")
