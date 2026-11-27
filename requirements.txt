@@ -10,7 +10,7 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.4
 mmh3==5.3.1
-packaging==26.3
+packaging==26.4
 pluggy==1.7.0
 pytest==9.2.0
 PyYAML==6.0.4
